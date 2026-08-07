@@ -29,7 +29,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@harness/contracts": "workspace:*"
+    "@harness/contracts": "workspace:*",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "fast-check": "^3.23.2",
