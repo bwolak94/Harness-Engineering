@@ -41,7 +41,6 @@
       "linter": {
         "rules": {
           "correctness": {
-            "noUndeclaredDependencies": "error",
             "noNodejsModules": "error"
           }
         }
