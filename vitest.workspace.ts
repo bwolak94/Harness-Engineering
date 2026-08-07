@@ -7,6 +7,10 @@ export default defineWorkspace([
       include: ["packages/core/**/*.test.ts"],
       coverage: {
         provider: "v8",
+        // harness-runtime.ts is an integration-only file — it requires real adapter
+        // implementations to be testable and is covered by the adapters-memory suite.
+        // Excluding it here keeps the 90% threshold meaningful for pure domain/ports.
+        exclude: ["**/harness-runtime.ts"],
         thresholds: {
           lines: 90,
           functions: 90,

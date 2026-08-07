@@ -1,2 +1,6 @@
-// Port interfaces — the boundary between domain and infrastructure.
-// Implemented by adapters-* packages, never by core itself.
+export * from "./model.port.js";
+export * from "./event-log.port.js";
+export * from "./state-store.port.js";
+export * from "./clock.port.js";
+export * from "./id.port.js";
+export * from "./tool-registry.port.js";
