@@ -54,6 +54,9 @@ export default defineWorkspace([
     test: {
       name: "adapters-postgres",
       include: ["packages/adapters-postgres/**/*.test.ts"],
+      // Testcontainers (PostgreSQL) can take 30-60 s to start — raise the threshold.
+      testTimeout: 180_000,
+      hookTimeout: 120_000,
       coverage: {
         provider: "v8",
         thresholds: {
@@ -105,6 +108,13 @@ export default defineWorkspace([
     test: {
       name: "server",
       include: ["apps/server/**/*.test.ts"],
+    },
+  },
+  {
+    test: {
+      name: "web",
+      include: ["apps/web/**/*.test.ts"],
+      environment: "jsdom",
     },
   },
 ]);
