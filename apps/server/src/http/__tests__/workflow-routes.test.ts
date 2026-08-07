@@ -2,8 +2,8 @@ import type { HarnessEvent } from "@harness/contracts";
 import type { WorkflowState } from "@harness/core";
 import Fastify from "fastify";
 import { describe, expect, it, vi } from "vitest";
-import { registerWorkflowRoutes } from "../workflow-routes.js";
 import type { HarnessService } from "../../service/harness-service.js";
+import { registerWorkflowRoutes } from "../workflow-routes.js";
 
 // ---------------------------------------------------------------------------
 // Minimal HarnessService stub
@@ -84,7 +84,9 @@ describe("POST /workflows", () => {
 describe("GET /workflows/:id", () => {
   it("returns 200 with state when workflow exists", async () => {
     const state = { id: "wf-1", status: "completed" } as unknown as WorkflowState;
-    const service = makeService({ getState: vi.fn().mockResolvedValue(state) } as unknown as HarnessService);
+    const service = makeService({
+      getState: vi.fn().mockResolvedValue(state),
+    } as unknown as HarnessService);
     const app = buildApp(service);
 
     const res = await app.inject({ method: "GET", url: "/workflows/wf-1" });
@@ -128,7 +130,9 @@ describe("GET /workflows/:id/events", () => {
         },
       },
     ];
-    const service = makeService({ getEvents: vi.fn().mockResolvedValue(events) } as unknown as HarnessService);
+    const service = makeService({
+      getEvents: vi.fn().mockResolvedValue(events),
+    } as unknown as HarnessService);
     const app = buildApp(service);
 
     const res = await app.inject({ method: "GET", url: "/workflows/wf-1/events" });

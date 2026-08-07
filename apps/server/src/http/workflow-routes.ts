@@ -28,10 +28,7 @@ const EventsQuerySchema = z.object({
   fromSeq: z.coerce.number().int().nonnegative().default(0),
 });
 
-export function registerWorkflowRoutes(
-  fastify: FastifyInstance,
-  service: HarnessService,
-): void {
+export function registerWorkflowRoutes(fastify: FastifyInstance, service: HarnessService): void {
   // POST /workflows — start a new workflow, returns 202 immediately
   fastify.post("/workflows", async (req, reply) => {
     const parsed = StartWorkflowBodySchema.safeParse(req.body);
