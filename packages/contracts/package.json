@@ -18,6 +18,10 @@
       "import": "./dist/tools/index.js",
       "types": "./dist/tools/index.d.ts"
     },
+    "./ws": {
+      "import": "./dist/ws.js",
+      "types": "./dist/ws.d.ts"
+    },
     "./data/*": {
       "import": "./dist/data/*.js",
       "types": "./dist/data/*.d.ts"

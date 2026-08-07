@@ -1,0 +1,93 @@
+import type { Budget, HarnessEvent } from "@harness/contracts";
+import type { EventLogPort, IdPort, StateStorePort, WorkflowState } from "@harness/core";
+import { HarnessRuntime } from "@harness/core";
+import type { HarnessRuntimeDeps } from "@harness/core";
+
+// ---------------------------------------------------------------------------
+// HarnessService — Facade (Pattern: Facade)
+//
+// Exposes four simple operations to HTTP/WS controllers.
+// Controllers depend on this interface, not on HarnessRuntime, registries, or
+// stores directly. Swapping adapters (e.g. Postgres in T06) touches only the
+// composition root — this surface never changes.
+// ---------------------------------------------------------------------------
+
+export interface StartWorkflowOptions {
+  goal: string;
+  budget?: Partial<Budget>;
+  constraints?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+}
+
+export interface StartWorkflowResult {
+  workflowId: string;
+}
+
+export interface HarnessServiceDeps {
+  runtimeDeps: HarnessRuntimeDeps;
+  eventLog: EventLogPort;
+  stateStore: StateStorePort;
+  idPort: IdPort;
+}
+
+export class HarnessService {
+  private readonly runtime: HarnessRuntime;
+  private readonly eventLog: EventLogPort;
+  private readonly stateStore: StateStorePort;
+  private readonly idPort: IdPort;
+
+  /** Default budget applied when the caller doesn't specify. */
+  private static readonly DEFAULT_BUDGET: Budget = {
+    maxTokens: 100_000,
+    maxSteps: 20,
+    maxWallClockMs: 300_000,
+    maxCostUsd: 5.0,
+  };
+
+  constructor(deps: HarnessServiceDeps) {
+    this.runtime = new HarnessRuntime(deps.runtimeDeps);
+    this.eventLog = deps.eventLog;
+    this.stateStore = deps.stateStore;
+    this.idPort = deps.idPort;
+  }
+
+  /**
+   * Start a new workflow asynchronously.
+   *
+   * Fire-and-forget: returns the workflowId immediately.
+   * Events stream through EventBus → WS gateway in real time.
+   */
+  start(opts: StartWorkflowOptions): StartWorkflowResult {
+    const workflowId = this.idPort.newId();
+    const budget: Budget = {
+      ...HarnessService.DEFAULT_BUDGET,
+      ...opts.budget,
+    };
+    const task = {
+      id: workflowId,
+      goal: opts.goal,
+      budget,
+      constraints: opts.constraints,
+      metadata: opts.metadata,
+    };
+
+    // Fire-and-forget: runtime errors are surfaced through the event log
+    // (workflow.failed event), not through this promise.
+    void this.runtime.run(task).catch((err: unknown) => {
+      console.error(`[harness] unhandled runtime error for workflow ${workflowId}:`, err);
+    });
+
+    return { workflowId };
+  }
+
+  /** Return the current workflow state, or undefined if not found. */
+  async getState(workflowId: string): Promise<WorkflowState | undefined> {
+    const versioned = await this.stateStore.load(workflowId);
+    return versioned?.state;
+  }
+
+  /** Return all events for a workflow starting from fromSeq (inclusive). */
+  async getEvents(workflowId: string, fromSeq = 0): Promise<readonly HarnessEvent[]> {
+    return this.eventLog.read(workflowId, fromSeq);
+  }
+}

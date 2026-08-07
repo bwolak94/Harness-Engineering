@@ -65,7 +65,8 @@ export class HarnessRuntime {
   async run(task: TaskPacket): Promise<WorkflowState> {
     const { model, eventLog, stateStore, toolRegistry, clock, idPort, middleware } = this.deps;
 
-    const workflowId = idPort.newId();
+    // Use the task's own id as the workflowId so callers know it before the runtime starts.
+    const workflowId = task.id;
     let state = initialWorkflowState(workflowId);
     let storeVersion = 0;
 

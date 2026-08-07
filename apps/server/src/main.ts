@@ -1,8 +1,46 @@
 import { parseEnv } from "@harness/contracts/env";
+import { compose } from "./composition/compose.js";
 
-// Composition root — the only place process.env is accessed.
-const env = parseEnv();
+// ---------------------------------------------------------------------------
+// Composition root — the only place where process.env is accessed.
+// All wiring happens in compose(); main() only boots and shuts down.
+// ---------------------------------------------------------------------------
 
-console.log(`[harness] starting server on ${env.HOST}:${env.PORT} (${env.NODE_ENV})`);
+async function main(): Promise<void> {
+  const env = parseEnv();
+  const { fastify, gateway } = compose(env);
 
-// TODO(T04): mount Fastify + WebSocket gateway
+  // Graceful shutdown — SIGTERM from container orchestrator (Kubernetes, Docker).
+  // Budget: 5 s to finish in-flight steps, then force-exit.
+  const shutdown = async (signal: string) => {
+    console.log(`[harness] ${signal} received — shutting down`);
+    const deadline = setTimeout(() => {
+      console.error("[harness] shutdown timed out, force-exiting");
+      process.exit(1);
+    }, 5_000);
+
+    try {
+      await fastify.close(); // stops accepting new HTTP/WS connections
+      await gateway.close(); // closes open WS subscriptions
+      clearTimeout(deadline);
+      console.log("[harness] shutdown complete");
+      process.exit(0);
+    } catch (err) {
+      console.error("[harness] error during shutdown:", err);
+      process.exit(1);
+    }
+  };
+
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
+
+  try {
+    await fastify.listen({ port: env.PORT, host: env.HOST });
+    console.log(`[harness] listening on ${env.HOST}:${env.PORT} (${env.NODE_ENV})`);
+  } catch (err) {
+    console.error("[harness] failed to start:", err);
+    process.exit(1);
+  }
+}
+
+void main();
