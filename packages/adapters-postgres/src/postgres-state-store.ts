@@ -66,7 +66,17 @@ export class PostgresStateStore implements StateStorePort {
       .orderBy(asc(eventsTable.seq));
 
     for (const row of eventRows) {
-      state = reduce(state, row.payload as unknown as HarnessEvent);
+      // Reconstruct the full HarnessEvent from the individual columns — the payload
+      // column stores only event.payload, not the whole event object.
+      const event: HarnessEvent = {
+        id: row.id,
+        workflowId: row.workflowId,
+        seq: row.seq,
+        at: row.at,
+        type: row.type,
+        payload: row.payload,
+      } as HarnessEvent;
+      state = reduce(state, event);
     }
 
     return { state, version };
@@ -77,16 +87,16 @@ export class PostgresStateStore implements StateStorePort {
 
     await this.db.transaction(async (tx) => {
       if (expectedVersion === 0) {
-        // First save — INSERT. Duplicate-key violation means a concurrent writer was first.
-        try {
-          await tx.insert(workflowsTable).values({
-            id: workflowId,
-            version: 1,
-            createdAt: now,
-            updatedAt: now,
-          });
-        } catch {
-          // Another process inserted the workflow concurrently.
+        // First save — INSERT with ON CONFLICT DO NOTHING to avoid aborting the transaction.
+        // A try/catch around a failing INSERT would mark the Postgres transaction as aborted,
+        // making any subsequent query in the same tx impossible.
+        const result = await tx
+          .insert(workflowsTable)
+          .values({ id: workflowId, version: 1, createdAt: now, updatedAt: now })
+          .onConflictDoNothing();
+
+        if ((result.rowCount ?? 0) === 0) {
+          // Another process inserted the workflow concurrently — read its actual version.
           const existing = await tx
             .select({ version: workflowsTable.version })
             .from(workflowsTable)
