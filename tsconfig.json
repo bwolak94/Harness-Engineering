@@ -1,0 +1,15 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/contracts" },
+    { "path": "packages/core" },
+    { "path": "packages/adapters-memory" },
+    { "path": "packages/adapters-postgres" },
+    { "path": "packages/adapters-llm" },
+    { "path": "packages/adapters-sandbox" },
+    { "path": "packages/observability" },
+    { "path": "packages/evals" },
+    { "path": "apps/server" },
+    { "path": "apps/web" }
+  ]
+}

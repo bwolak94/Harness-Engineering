@@ -1,0 +1,31 @@
+{
+  "name": "harness-lab",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --build tsconfig.json",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "build": "pnpm -r build",
+    "db:ping": "node --input-type=module --eval \"import { Client } from 'pg'; const c = new Client({ connectionString: process.env.DATABASE_URL }); await c.connect(); console.log('ok'); await c.end();\"",
+    "gen:schemas": "pnpm --filter @harness/contracts gen:schemas"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@commitlint/cli": "^19.6.0",
+    "@commitlint/config-conventional": "^19.6.0",
+    "@vitest/coverage-v8": "^2.1.8",
+    "lefthook": "^1.8.4",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
