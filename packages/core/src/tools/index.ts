@@ -1,0 +1,113 @@
+import type { ToolDefinition } from "@harness/contracts";
+import { getToolDefinition } from "@harness/contracts/tools";
+import {
+  composeDecorators,
+  withPolicy,
+  withResultTruncation,
+  withTelemetry,
+  withTimeout,
+} from "../application/tool-decorators.js";
+import { isDangerous } from "../application/tool-policy.js";
+import { asExecutor } from "../application/tool.js";
+import { tokenBudgetToChars } from "../application/truncation.js";
+import type { ToolExecutor } from "../ports/tool-registry.port.js";
+import { createAnalyzeInvestmentTool } from "./n1-analyze-investment.js";
+import { createCalculateLandedCostTool } from "./n3-calculate-landed-cost.js";
+import { createCalculateNetSalaryTool } from "./n9-calculate-net-salary.js";
+import { createProposeRepricingTool } from "./n10-propose-repricing.js";
+import { createRunCodeTool } from "./run-code.js";
+
+// Re-export individual tool factories so callers can build custom variants.
+export { createAnalyzeInvestmentTool } from "./n1-analyze-investment.js";
+export { createCalculateLandedCostTool } from "./n3-calculate-landed-cost.js";
+export { createCalculateNetSalaryTool } from "./n9-calculate-net-salary.js";
+export { createProposeRepricingTool } from "./n10-propose-repricing.js";
+export { createRunCodeTool } from "./run-code.js";
+
+// ---------------------------------------------------------------------------
+// Startup-time definition lookup
+// ---------------------------------------------------------------------------
+
+/**
+ * Retrieve a tool definition from the contracts registry.
+ * Throws synchronously at startup (not at tool invocation time) so that a
+ * missing entry in TOOL_REGISTRY is caught when the composition root boots,
+ * not when the model first tries to call the tool.
+ */
+function requireDefinition(name: string): ToolDefinition {
+  const def = getToolDefinition(name);
+  if (!def) {
+    throw new Error(
+      `Tool '${name}' is not registered in TOOL_REGISTRY (packages/contracts/src/tools/index.ts). Add it there before registering the executor.`,
+    );
+  }
+  return def;
+}
+
+// ---------------------------------------------------------------------------
+// Standard decorator stack
+//
+// Order (outermost → innermost):
+//   withPolicy(isDangerous) → withTimeout → withResultTruncation → withTelemetry
+//
+// withPolicy is outermost: no work is done for blocked tools.
+// withTelemetry is innermost: measures only real execution time, not policy/timeout overhead.
+// ---------------------------------------------------------------------------
+
+const DEFAULT_TIMEOUT_MS = 30_000;
+const DEFAULT_TOKEN_BUDGET = 50_000; // ~200 KB
+const DEFAULT_MAX_CHARS = tokenBudgetToChars(DEFAULT_TOKEN_BUDGET);
+
+const standardDecorators = composeDecorators(
+  withPolicy(isDangerous()),
+  withTimeout(DEFAULT_TIMEOUT_MS),
+  withResultTruncation(DEFAULT_MAX_CHARS),
+  withTelemetry(),
+);
+
+function decorate(executor: ToolExecutor): ToolExecutor {
+  return standardDecorators(executor);
+}
+
+// ---------------------------------------------------------------------------
+// createDefaultToolExecutors — call once from the composition root
+// ---------------------------------------------------------------------------
+
+/**
+ * Build all T03 tool executors with the standard decorator stack applied.
+ *
+ * Register each returned executor with a ToolRegistryPort:
+ *
+ *   for (const executor of createDefaultToolExecutors()) {
+ *     registry.register(executor);
+ *   }
+ *
+ * Adding a new tool requires:
+ *   1. Implement the Tool<I,O> factory.
+ *   2. Add a `requireDefinition(name)` call here.
+ *   3. Wrap with `decorate(asExecutor(...))` and push to the array.
+ *   — zero changes to HarnessRuntime.
+ */
+export function createDefaultToolExecutors(): ToolExecutor[] {
+  return [
+    decorate(asExecutor(createAnalyzeInvestmentTool(requireDefinition("analyzeInvestment")))),
+    decorate(asExecutor(createCalculateLandedCostTool(requireDefinition("calculateLandedCost")))),
+    decorate(asExecutor(createCalculateNetSalaryTool(requireDefinition("calculateNetSalary")))),
+    decorate(asExecutor(createProposeRepricingTool(requireDefinition("proposeRepricing")))),
+    // runCode: definition not in TOOL_REGISTRY yet (T08); provide inline stub definition.
+    decorate(
+      asExecutor(
+        createRunCodeTool({
+          name: "runCode",
+          description:
+            "Execute a code snippet in an isolated sandbox. NOT IMPLEMENTED — returns an error. Use domain-specific tools instead.",
+          dangerous: false,
+          idempotent: false,
+          costHint: "moderate",
+          inputSchema: {},
+          outputSchema: {},
+        }),
+      ),
+    ),
+  ];
+}

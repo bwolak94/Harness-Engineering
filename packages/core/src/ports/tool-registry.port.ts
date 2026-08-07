@@ -14,7 +14,12 @@ export interface ToolCallError {
 
 export interface ToolExecutor {
   definition: ToolDefinition;
-  execute(args: unknown): Promise<Result<unknown, ToolCallError>>;
+  /**
+   * Execute the tool with the given (untyped) arguments.
+   * The optional AbortSignal is provided by withTimeout and should be checked
+   * by long-running tools to enable cooperative cancellation.
+   */
+  execute(args: unknown, signal?: AbortSignal): Promise<Result<unknown, ToolCallError>>;
 }
 
 // ---------------------------------------------------------------------------
