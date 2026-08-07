@@ -24,12 +24,7 @@ export function InspectorPage() {
       />
 
       {/* Event stream panel — 60% */}
-      <EventStreamPane
-        events={events}
-        status={status}
-        lagged={lagged}
-        className="flex-1 min-w-0"
-      />
+      <EventStreamPane events={events} status={status} lagged={lagged} className="flex-1 min-w-0" />
     </div>
   );
 }

@@ -2,8 +2,8 @@ import type { HarnessEvent } from "@harness/contracts";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useRef, useState } from "react";
 import { cn } from "../../../shared/lib/cn.js";
-import { Badge } from "../../../shared/ui/badge.js";
 import type { ConnectionStatus } from "../../../shared/transport/harness-socket.js";
+import { Badge } from "../../../shared/ui/badge.js";
 
 // ---------------------------------------------------------------------------
 // Event type → display metadata
@@ -40,6 +40,7 @@ function EventRow({ event, style }: { event: HarnessEvent; style: React.CSSPrope
   return (
     <div style={style} className="flex flex-col border-b border-border px-3 py-2 animate-fade-in">
       <button
+        type="button"
         onClick={() => setExpanded((v) => !v)}
         className="flex items-center gap-2 text-left w-full hover:bg-surface-2 -mx-3 px-3 py-1 rounded transition-colors"
       >
@@ -47,11 +48,12 @@ function EventRow({ event, style }: { event: HarnessEvent; style: React.CSSPrope
           {event.seq}
         </span>
         <Badge variant={meta.variant}>{meta.label}</Badge>
-        <span className="font-mono text-xs text-[#a1a1aa] truncate flex-1">
-          {event.type}
-        </span>
+        <span className="font-mono text-xs text-[#a1a1aa] truncate flex-1">{event.type}</span>
         <span className="font-mono text-xs text-[#3f3f46] shrink-0">
-          {new Date(event.at).toLocaleTimeString("en-US", { hour12: false, fractionalSecondDigits: 3 })}
+          {new Date(event.at).toLocaleTimeString("en-US", {
+            hour12: false,
+            fractionalSecondDigits: 3,
+          })}
         </span>
         <span className="text-xs text-[#3f3f46]">{expanded ? "▴" : "▾"}</span>
       </button>
@@ -116,6 +118,7 @@ export function EventStreamPane({ events, status, lagged, className }: EventStre
       {eventTypes.length > 0 && (
         <div className="flex flex-wrap gap-1 border-b border-border px-3 py-1.5 shrink-0">
           <button
+            type="button"
             onClick={() => setFilter(ALL_TYPES)}
             className={cn(
               "rounded px-2 py-0.5 text-xs font-mono transition-colors",
@@ -130,6 +133,7 @@ export function EventStreamPane({ events, status, lagged, className }: EventStre
             const meta = getEventMeta(t);
             return (
               <button
+                type="button"
                 key={t}
                 onClick={() => setFilter(t)}
                 className={cn(
@@ -151,9 +155,7 @@ export function EventStreamPane({ events, status, lagged, className }: EventStre
             {status === "connected" ? "Waiting for events…" : "No events yet"}
           </div>
         ) : (
-          <div
-            style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: "relative" }}
-          >
+          <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: "relative" }}>
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
               const event = filtered[virtualRow.index];
               if (!event) return null;

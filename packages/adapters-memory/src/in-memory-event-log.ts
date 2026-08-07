@@ -25,9 +25,7 @@ export class InMemoryEventLog implements EventLogPort {
     const log = this.store.get(workflowId);
     if (log === undefined) return [];
     // Sort ascending by seq to match the Postgres ORDER BY seq guarantee.
-    return log
-      .filter((e) => e.seq >= fromSeq)
-      .sort((a, b) => a.seq - b.seq);
+    return log.filter((e) => e.seq >= fromSeq).sort((a, b) => a.seq - b.seq);
   }
 
   /** Returns all events across all workflows (useful for assertions in tests). */

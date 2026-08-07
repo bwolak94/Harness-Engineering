@@ -1,8 +1,8 @@
-import type { HarnessEvent } from "@harness/contracts";
 import { InMemoryEventLog } from "@harness/adapters-memory";
-import { describe, expect, it, vi } from "vitest";
-import { EventBus } from "../event-bus.js";
+import type { HarnessEvent } from "@harness/contracts";
+import { describe, expect, it } from "vitest";
 import { CompositeEventLog } from "../composite-event-log.js";
+import { EventBus } from "../event-bus.js";
 
 function makeEvent(workflowId: string, seq: number): HarnessEvent {
   return {

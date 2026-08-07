@@ -34,22 +34,38 @@ function makeMockWs(): MockWs {
     onerror: null,
     sent: [],
     readyState: 0,
-    send(data) { this.sent.push(data); },
-    close() { this.readyState = 3; this.onclose?.(); },
-    simulateOpen() { this.readyState = 1; this.onopen?.(); },
-    simulateMessage(msg) { this.onmessage?.({ data: JSON.stringify(msg) }); },
-    simulateClose() { this.readyState = 3; this.onclose?.(); },
+    send(data) {
+      this.sent.push(data);
+    },
+    close() {
+      this.readyState = 3;
+      this.onclose?.();
+    },
+    simulateOpen() {
+      this.readyState = 1;
+      this.onopen?.();
+    },
+    simulateMessage(msg) {
+      this.onmessage?.({ data: JSON.stringify(msg) });
+    },
+    simulateClose() {
+      this.readyState = 3;
+      this.onclose?.();
+    },
   };
   return ws;
 }
 
 // Patch globalThis.WebSocket before importing HarnessSocket.
 beforeEach(() => {
-  vi.stubGlobal("WebSocket", vi.fn(() => {
-    const ws = makeMockWs();
-    lastWs = ws;
-    return ws;
-  }));
+  vi.stubGlobal(
+    "WebSocket",
+    vi.fn(() => {
+      const ws = makeMockWs();
+      lastWs = ws;
+      return ws;
+    }),
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -79,7 +95,11 @@ describe("HarnessSocket", () => {
     socket.connect("wf-1", 0);
     lastWs!.simulateOpen();
 
-    const msg = JSON.parse(lastWs!.sent[0] as string) as { type: string; workflowId: string; lastSeq: number };
+    const msg = JSON.parse(lastWs!.sent[0] as string) as {
+      type: string;
+      workflowId: string;
+      lastSeq: number;
+    };
     expect(msg.type).toBe("subscribe");
     expect(msg.workflowId).toBe("wf-1");
     expect(msg.lastSeq).toBe(0);
@@ -146,7 +166,9 @@ describe("HarnessSocket", () => {
   it("calls onLagged when server sends stream.lagged", () => {
     const socket = new HarnessSocket();
     let lagged = false;
-    socket.onLagged(() => { lagged = true; });
+    socket.onLagged(() => {
+      lagged = true;
+    });
     socket.connect("wf-1", 0);
     lastWs!.simulateOpen();
     lastWs!.simulateMessage({ type: "stream.lagged", workflowId: "wf-1", lastSeq: 10 });
@@ -163,7 +185,7 @@ describe("HarnessSocket", () => {
 
     vi.useFakeTimers();
     // biome-ignore lint/suspicious/noExplicitAny: test-only cast
-    const wsMock = (globalThis.WebSocket as unknown as { mock: { calls: unknown[] } });
+    const wsMock = globalThis.WebSocket as unknown as { mock: { calls: unknown[] } };
     const wsCallCount = wsMock.mock.calls.length;
     lastWs!.simulateClose();
     vi.runAllTimers();

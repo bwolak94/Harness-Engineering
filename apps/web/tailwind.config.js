@@ -5,23 +5,23 @@ export default {
     extend: {
       colors: {
         // Inspector dark theme palette
-        canvas: "#0a0a0f",       // deep background
-        surface: "#111118",       // panel background
-        "surface-2": "#1a1a27",  // raised element background
-        border: "#1e1e2e",       // subtle borders
-        "border-2": "#2d2d44",   // stronger borders
+        canvas: "#0a0a0f", // deep background
+        surface: "#111118", // panel background
+        "surface-2": "#1a1a27", // raised element background
+        border: "#1e1e2e", // subtle borders
+        "border-2": "#2d2d44", // stronger borders
         // Accent — indigo, signals "active/running"
         accent: "#6366f1",
         "accent-dim": "#4f46e5",
         // Semantic event colours
-        "ev-lifecycle": "#818cf8",  // workflow.* events
-        "ev-step": "#60a5fa",       // step.planned
-        "ev-tool": "#c084fc",       // tool.called / tool.succeeded / tool.failed
+        "ev-lifecycle": "#818cf8", // workflow.* events
+        "ev-step": "#60a5fa", // step.planned
+        "ev-tool": "#c084fc", // tool.called / tool.succeeded / tool.failed
         "ev-checkpoint": "#a1a1aa", // state.checkpointed
-        "ev-success": "#4ade80",    // succeeded / completed
-        "ev-error": "#f87171",      // failed
-        "ev-warn": "#fbbf24",       // suspended
-        "ev-info": "#22d3ee",       // resumed
+        "ev-success": "#4ade80", // succeeded / completed
+        "ev-error": "#f87171", // failed
+        "ev-warn": "#fbbf24", // suspended
+        "ev-info": "#22d3ee", // resumed
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],

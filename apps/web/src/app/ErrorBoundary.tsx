@@ -31,6 +31,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <p className="text-sm font-medium text-ev-error">Render error</p>
             <p className="font-mono text-xs text-[#a1a1aa]">{this.state.error.message}</p>
             <button
+              type="button"
               onClick={() => window.location.reload()}
               className="rounded bg-surface-2 px-3 py-1.5 text-xs text-[#a1a1aa] hover:text-white transition-colors"
             >

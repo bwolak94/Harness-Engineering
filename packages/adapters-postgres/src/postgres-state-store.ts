@@ -100,7 +100,9 @@ export class PostgresStateStore implements StateStorePort {
         const result = await tx
           .update(workflowsTable)
           .set({ version: expectedVersion + 1, updatedAt: now })
-          .where(and(eq(workflowsTable.id, workflowId), eq(workflowsTable.version, expectedVersion)));
+          .where(
+            and(eq(workflowsTable.id, workflowId), eq(workflowsTable.version, expectedVersion)),
+          );
 
         if ((result.rowCount ?? 0) === 0) {
           // No rows updated — version mismatch (concurrent write or workflow deleted).

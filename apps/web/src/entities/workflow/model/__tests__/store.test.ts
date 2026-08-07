@@ -3,9 +3,9 @@
  * the shared reducer and that state is computed correctly.
  */
 import type { HarnessEvent } from "@harness/contracts";
-import { describe, expect, it } from "vitest";
 import { initialWorkflowState } from "@harness/core";
 import { reduce } from "@harness/core";
+import { describe, expect, it } from "vitest";
 
 // We test the reducer integration directly (the store itself needs a full
 // React + Zustand environment which we avoid in unit tests).

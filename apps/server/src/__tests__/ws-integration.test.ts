@@ -1,24 +1,21 @@
-/**
- * WS integration tests.
- *
- * DoD coverage:
- * - Disconnect mid-run → reconnect with lastSeq → complete events, no gaps, no duplicates.
- * - Slow consumer → buffer overflow → stream.lagged sent, runtime not blocked.
- */
-import type { HarnessEvent } from "@harness/contracts";
+import type { Socket } from "node:net";
+import {
+  FakeModelPort,
+  FixedClock,
+  InMemoryEventLog,
+  InMemoryStateStore,
+  InMemoryToolRegistry,
+  SeededIdPort,
+} from "@harness/adapters-memory";
 import type { WsServerMessage } from "@harness/contracts/ws";
-import { InMemoryEventLog, InMemoryStateStore, InMemoryToolRegistry, SeededIdPort, FixedClock, FakeModelPort } from "@harness/adapters-memory";
-import { HarnessRuntime, WallClock } from "@harness/core";
-import { describe, expect, it, afterEach } from "vitest";
-import { createServer } from "node:http";
+import Fastify from "fastify";
+import { describe, expect, it } from "vitest";
 import WebSocket from "ws";
+import { registerWorkflowRoutes } from "../http/workflow-routes.js";
 import { CompositeEventLog } from "../service/composite-event-log.js";
 import { EventBus } from "../service/event-bus.js";
 import { HarnessService } from "../service/harness-service.js";
 import { WsGateway } from "../ws/ws-gateway.js";
-import Fastify from "fastify";
-import { registerWorkflowRoutes } from "../http/workflow-routes.js";
-import type { Socket } from "node:net";
 
 // ---------------------------------------------------------------------------
 // Test app factory
@@ -85,7 +82,11 @@ async function wsOpen(ws: WebSocket): Promise<void> {
   });
 }
 
-async function wsReceive(ws: WebSocket, count: number, timeoutMs = 2000): Promise<WsServerMessage[]> {
+async function wsReceive(
+  ws: WebSocket,
+  count: number,
+  timeoutMs = 2000,
+): Promise<WsServerMessage[]> {
   const messages: WsServerMessage[] = [];
   return new Promise((resolve, reject) => {
     const tid = setTimeout(() => {

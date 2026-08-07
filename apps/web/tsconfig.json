@@ -13,10 +13,7 @@
     "noEmit": false,
     "emitDeclarationOnly": true
   },
-  "references": [
-    { "path": "../../packages/contracts" },
-    { "path": "../../packages/core" }
-  ],
+  "references": [{ "path": "../../packages/contracts" }, { "path": "../../packages/core" }],
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

@@ -1,6 +1,6 @@
+import type { IncomingMessage } from "node:http";
 import type { HarnessEvent } from "@harness/contracts";
 import type { WsServerMessage } from "@harness/contracts/ws";
-import type { IncomingMessage } from "node:http";
 import type WebSocket from "ws";
 import { WebSocketServer } from "ws";
 import type { EventBusPort } from "../service/event-bus.js";

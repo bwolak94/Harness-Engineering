@@ -1,15 +1,15 @@
-import type { Env } from "@harness/contracts/env";
-import type { IdPort, ModelContext, ModelPort } from "@harness/core";
-import { WallClock, ok } from "@harness/core";
 import { randomUUID } from "node:crypto";
+import type { Socket } from "node:net";
 import {
   InMemoryEventLog,
   InMemoryStateStore,
   InMemoryToolRegistry,
 } from "@harness/adapters-memory";
+import type { Env } from "@harness/contracts/env";
+import type { IdPort, ModelContext, ModelPort } from "@harness/core";
+import { WallClock, ok } from "@harness/core";
 import { createDefaultToolExecutors } from "@harness/core/tools";
 import Fastify, { type FastifyInstance } from "fastify";
-import type { Socket } from "node:net";
 import { registerWorkflowRoutes } from "../http/workflow-routes.js";
 import { CompositeEventLog } from "../service/composite-event-log.js";
 import { EventBus } from "../service/event-bus.js";

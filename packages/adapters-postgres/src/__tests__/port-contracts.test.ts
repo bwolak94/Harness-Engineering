@@ -10,10 +10,10 @@
  * The in-memory fake is no longer just a convention — it's verified by this file.
  */
 import { execSync } from "node:child_process";
+import { InMemoryEventLog, InMemoryStateStore } from "@harness/adapters-memory";
 import type { HarnessEvent } from "@harness/contracts";
 import { ConcurrentWriteError, initialWorkflowState, reduce } from "@harness/core";
 import type { EventLogPort, StateStorePort } from "@harness/core";
-import { InMemoryEventLog, InMemoryStateStore } from "@harness/adapters-memory";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -26,7 +26,7 @@ try {
 } catch {
   // Docker not available — Postgres contract suite will be skipped.
 }
-import { createDb, applySchema } from "../db/client.js";
+import { applySchema, createDb } from "../db/client.js";
 import { PostgresEventLog } from "../postgres-event-log.js";
 import { PostgresStateStore } from "../postgres-state-store.js";
 
@@ -280,138 +280,143 @@ definePortContracts("InMemory", {
 // Postgres suite — real database via Testcontainers
 // ---------------------------------------------------------------------------
 
-describe.skipIf(!dockerAvailable)("Port contracts — Postgres (Testcontainers)", { timeout: 180_000 }, () => {
-  let pool: Pool;
-  let db: ReturnType<typeof createDb>["db"];
-  let pgEventLog: PostgresEventLog;
-  let pgStateStore: PostgresStateStore;
+describe.skipIf(!dockerAvailable)(
+  "Port contracts — Postgres (Testcontainers)",
+  { timeout: 180_000 },
+  () => {
+    let pool: Pool;
+    let db: ReturnType<typeof createDb>["db"];
+    let pgEventLog: PostgresEventLog;
+    let pgStateStore: PostgresStateStore;
 
-  beforeAll(async () => {
-    // Lazy-import Testcontainers to avoid load errors when Docker is unavailable.
-    const { PostgreSqlContainer } = await import("@testcontainers/postgresql");
-    const container = await new PostgreSqlContainer("postgres:17-alpine").start();
+    beforeAll(async () => {
+      // Lazy-import Testcontainers to avoid load errors when Docker is unavailable.
+      const { PostgreSqlContainer } = await import("@testcontainers/postgresql");
+      const container = await new PostgreSqlContainer("postgres:17-alpine").start();
 
-    pool = new Pool({ connectionString: container.getConnectionUri() });
-    const created = createDb(container.getConnectionUri());
-    db = created.db;
+      pool = new Pool({ connectionString: container.getConnectionUri() });
+      const created = createDb(container.getConnectionUri());
+      db = created.db;
 
-    await applySchema(pool);
+      await applySchema(pool);
 
-    // Register teardown — container.stop() called by afterAll
-    afterAll(async () => {
-      await pool.end();
-      await container.stop();
+      // Register teardown — container.stop() called by afterAll
+      afterAll(async () => {
+        await pool.end();
+        await container.stop();
+      });
+    }, 120_000);
+
+    beforeEach(async () => {
+      // Truncate tables between tests for isolation.
+      await pool.query("TRUNCATE TABLE snapshots, events, workflows RESTART IDENTITY CASCADE");
+      pgEventLog = new PostgresEventLog(db);
+      pgStateStore = new PostgresStateStore(db);
     });
-  }, 120_000);
 
-  beforeEach(async () => {
-    // Truncate tables between tests for isolation.
-    await pool.query("TRUNCATE TABLE snapshots, events, workflows RESTART IDENTITY CASCADE");
-    pgEventLog = new PostgresEventLog(db);
-    pgStateStore = new PostgresStateStore(db);
-  });
+    // Run the full contract suite against Postgres adapters.
+    const contractTests = [
+      {
+        name: "EventLogPort — returns empty array for unknown workflowId",
+        run: async () => {
+          const events = await pgEventLog.read("unknown", 0);
+          expect(events).toHaveLength(0);
+        },
+      },
+      {
+        name: "EventLogPort — appends and reads back events in seq order",
+        run: async () => {
+          await pgEventLog.append(makeEvent("wf-pg-1", 2));
+          await pgEventLog.append(makeEvent("wf-pg-1", 0));
+          await pgEventLog.append(makeEvent("wf-pg-1", 1));
+          const events = await pgEventLog.read("wf-pg-1", 0);
+          expect(events).toHaveLength(3);
+          expect(events.map((e) => e.seq)).toEqual([0, 1, 2]);
+        },
+      },
+      {
+        name: "EventLogPort — filters by fromSeq",
+        run: async () => {
+          for (let i = 0; i < 5; i++) await pgEventLog.append(makeEvent("wf-pg-2", i));
+          const events = await pgEventLog.read("wf-pg-2", 3);
+          expect(events).toHaveLength(2);
+          expect(events[0]?.seq).toBe(3);
+        },
+      },
+      {
+        name: "EventLogPort — append is idempotent",
+        run: async () => {
+          const ev = makeEvent("wf-pg-idem", 0);
+          await pgEventLog.append(ev);
+          await pgEventLog.append(ev); // ON CONFLICT DO NOTHING
+          const events = await pgEventLog.read("wf-pg-idem", 0);
+          expect(events).toHaveLength(1);
+        },
+      },
+      {
+        name: "EventLogPort — UPDATE on events is rejected by trigger",
+        run: async () => {
+          await pgEventLog.append(makeEvent("wf-pg-trigger", 0));
+          // Direct SQL UPDATE should be rejected by the append-only trigger.
+          await expect(
+            pool.query("UPDATE events SET type = 'hacked' WHERE workflow_id = 'wf-pg-trigger'"),
+          ).rejects.toThrow("append-only");
+        },
+      },
+      {
+        name: "StateStorePort — first save and load",
+        run: async () => {
+          const wfId = "wf-pg-save";
+          const state = reduce(initialWorkflowState(wfId), makeEvent(wfId, 0));
+          await pgEventLog.append(makeEvent(wfId, 0));
+          await pgStateStore.save(wfId, state, 0);
+          const loaded = await pgStateStore.load(wfId);
+          expect(loaded?.version).toBe(1);
+          expect(loaded?.state.status).toBe("running");
+        },
+      },
+      {
+        name: "StateStorePort — ConcurrentWriteError on stale version",
+        run: async () => {
+          const wfId = "wf-pg-conflict";
+          const state = reduce(initialWorkflowState(wfId), makeEvent(wfId, 0));
+          await pgEventLog.append(makeEvent(wfId, 0));
+          await pgStateStore.save(wfId, state, 0);
+          await expect(pgStateStore.save(wfId, state, 0)).rejects.toBeInstanceOf(
+            ConcurrentWriteError,
+          );
+        },
+      },
+      {
+        name: "StateStorePort — concurrent saves: one success, one ConcurrentWriteError",
+        run: async () => {
+          const wfId = "wf-pg-concurrent";
+          const state = reduce(initialWorkflowState(wfId), makeEvent(wfId, 0));
+          await pgEventLog.append(makeEvent(wfId, 0));
+          const results = await Promise.allSettled([
+            pgStateStore.save(wfId, state, 0),
+            pgStateStore.save(wfId, state, 0),
+          ]);
+          const successes = results.filter((r) => r.status === "fulfilled");
+          const failures = results.filter((r) => r.status === "rejected");
+          expect(successes).toHaveLength(1);
+          expect(failures).toHaveLength(1);
+          expect((failures[0] as PromiseRejectedResult).reason).toBeInstanceOf(
+            ConcurrentWriteError,
+          );
+        },
+      },
+    ];
 
-  // Run the full contract suite against Postgres adapters.
-  const contractTests = [
-    {
-      name: "EventLogPort — returns empty array for unknown workflowId",
-      run: async () => {
-        const events = await pgEventLog.read("unknown", 0);
-        expect(events).toHaveLength(0);
-      },
-    },
-    {
-      name: "EventLogPort — appends and reads back events in seq order",
-      run: async () => {
-        await pgEventLog.append(makeEvent("wf-pg-1", 2));
-        await pgEventLog.append(makeEvent("wf-pg-1", 0));
-        await pgEventLog.append(makeEvent("wf-pg-1", 1));
-        const events = await pgEventLog.read("wf-pg-1", 0);
-        expect(events).toHaveLength(3);
-        expect(events.map((e) => e.seq)).toEqual([0, 1, 2]);
-      },
-    },
-    {
-      name: "EventLogPort — filters by fromSeq",
-      run: async () => {
-        for (let i = 0; i < 5; i++) await pgEventLog.append(makeEvent("wf-pg-2", i));
-        const events = await pgEventLog.read("wf-pg-2", 3);
-        expect(events).toHaveLength(2);
-        expect(events[0]?.seq).toBe(3);
-      },
-    },
-    {
-      name: "EventLogPort — append is idempotent",
-      run: async () => {
-        const ev = makeEvent("wf-pg-idem", 0);
-        await pgEventLog.append(ev);
-        await pgEventLog.append(ev); // ON CONFLICT DO NOTHING
-        const events = await pgEventLog.read("wf-pg-idem", 0);
-        expect(events).toHaveLength(1);
-      },
-    },
-    {
-      name: "EventLogPort — UPDATE on events is rejected by trigger",
-      run: async () => {
-        await pgEventLog.append(makeEvent("wf-pg-trigger", 0));
-        // Direct SQL UPDATE should be rejected by the append-only trigger.
-        await expect(
-          pool.query("UPDATE events SET type = 'hacked' WHERE workflow_id = 'wf-pg-trigger'"),
-        ).rejects.toThrow("append-only");
-      },
-    },
-    {
-      name: "StateStorePort — first save and load",
-      run: async () => {
-        const wfId = "wf-pg-save";
-        const state = reduce(initialWorkflowState(wfId), makeEvent(wfId, 0));
-        await pgEventLog.append(makeEvent(wfId, 0));
-        await pgStateStore.save(wfId, state, 0);
-        const loaded = await pgStateStore.load(wfId);
-        expect(loaded?.version).toBe(1);
-        expect(loaded?.state.status).toBe("running");
-      },
-    },
-    {
-      name: "StateStorePort — ConcurrentWriteError on stale version",
-      run: async () => {
-        const wfId = "wf-pg-conflict";
-        const state = reduce(initialWorkflowState(wfId), makeEvent(wfId, 0));
-        await pgEventLog.append(makeEvent(wfId, 0));
-        await pgStateStore.save(wfId, state, 0);
-        await expect(pgStateStore.save(wfId, state, 0)).rejects.toBeInstanceOf(ConcurrentWriteError);
-      },
-    },
-    {
-      name: "StateStorePort — concurrent saves: one success, one ConcurrentWriteError",
-      run: async () => {
-        const wfId = "wf-pg-concurrent";
-        const state = reduce(initialWorkflowState(wfId), makeEvent(wfId, 0));
-        await pgEventLog.append(makeEvent(wfId, 0));
-        const results = await Promise.allSettled([
-          pgStateStore.save(wfId, state, 0),
-          pgStateStore.save(wfId, state, 0),
-        ]);
-        const successes = results.filter((r) => r.status === "fulfilled");
-        const failures = results.filter((r) => r.status === "rejected");
-        expect(successes).toHaveLength(1);
-        expect(failures).toHaveLength(1);
-        expect((failures[0] as PromiseRejectedResult).reason).toBeInstanceOf(ConcurrentWriteError);
-      },
-    },
-  ];
+    for (const test of contractTests) {
+      it(test.name, test.run, 30_000);
+    }
 
-  for (const test of contractTests) {
-    it(test.name, test.run, 30_000);
-  }
+    // -----------------------------------------------------------------------
+    // Postgres-only: performance test for snapshot-based restoration
+    // -----------------------------------------------------------------------
 
-  // -----------------------------------------------------------------------
-  // Postgres-only: performance test for snapshot-based restoration
-  // -----------------------------------------------------------------------
-
-  it(
-    "restores state from 10 000 events in under 100 ms with snapshots every 50",
-    async () => {
+    it("restores state from 10 000 events in under 100 ms with snapshots every 50", async () => {
       const wfId = "wf-perf";
       const TOTAL = 10_000;
 
@@ -457,7 +462,6 @@ describe.skipIf(!dockerAvailable)("Port contracts — Postgres (Testcontainers)"
 
       expect(loaded?.state.seq).toBe(TOTAL - 1);
       expect(elapsed).toBeLessThan(100);
-    },
-    60_000,
-  );
-});
+    }, 60_000);
+  },
+);

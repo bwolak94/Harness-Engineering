@@ -1,8 +1,8 @@
-import type { WorkflowState } from "@harness/core";
 import type { HarnessEvent } from "@harness/contracts";
+import type { WorkflowState } from "@harness/core";
+import { SubmitForm } from "../../../features/submit-task/index.js";
 import { cn } from "../../../shared/lib/cn.js";
 import { Badge } from "../../../shared/ui/badge.js";
-import { SubmitForm } from "../../../features/submit-task/index.js";
 
 // ---------------------------------------------------------------------------
 // ChatPane — left panel: task submission + status summary
@@ -30,8 +30,11 @@ function StepSummary({ events }: StepSummaryProps) {
         const didFail = events.some(
           (x) => x.type === "tool.failed" && x.payload.callId === e.payload.callId,
         );
-        const status: "running" | "done" | "error" =
-          didSucceed ? "done" : didFail ? "error" : "running";
+        const status: "running" | "done" | "error" = didSucceed
+          ? "done"
+          : didFail
+            ? "error"
+            : "running";
 
         return (
           <div key={e.id} className="flex items-center gap-2 text-xs">
@@ -43,9 +46,7 @@ function StepSummary({ events }: StepSummaryProps) {
                 status === "running" && "bg-accent animate-pulse",
               )}
             />
-            <span className="font-mono text-[#a1a1aa] truncate">
-              {e.payload.toolName}
-            </span>
+            <span className="font-mono text-[#a1a1aa] truncate">{e.payload.toolName}</span>
           </div>
         );
       })}
