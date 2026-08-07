@@ -1,0 +1,22 @@
+pre-commit:
+  parallel: false
+  commands:
+    biome:
+      glob: "*.{ts,tsx,js,jsx,json}"
+      run: pnpm biome check --files-ignore-unknown=true {staged_files}
+    typecheck:
+      run: |
+        changed_pkgs=$(git diff --cached --name-only | grep -oE '(apps|packages)/[^/]+' | sort -u || true)
+        if [ -n "$changed_pkgs" ]; then
+          for pkg in $changed_pkgs; do
+            if [ -f "$pkg/tsconfig.json" ]; then
+              echo "Type-checking $pkg..."
+              pnpm --filter "./$pkg" typecheck || exit 1
+            fi
+          done
+        fi
+
+commit-msg:
+  commands:
+    commitlint:
+      run: pnpm commitlint --edit {1}

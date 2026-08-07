@@ -3,39 +3,17 @@
 .env.local
 *.env
 
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-.Python
-*.egg-info/
+# Node / pnpm
+node_modules/
 dist/
 build/
-*.egg
-.eggs/
+*.tsbuildinfo
+coverage/
 
-# Virtual environments
-.venv/
-venv/
-env/
-
-# uv
-.uv/
-
-# Type checking
-.mypy_cache/
-.pytype/
-
-# Linting
-.ruff_cache/
-
-# Testing
-.pytest_cache/
-.coverage
-coverage.xml
-htmlcov/
-.tox/
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
 
 # IDE
 .idea/
@@ -45,11 +23,28 @@ htmlcov/
 *~
 .DS_Store
 
-# Alembic (generated migration scripts are committed, but not pyc)
+# Python (legacy, remove after full migration to TS)
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+*.egg
+.eggs/
+.venv/
+venv/
+env/
+.uv/
+.mypy_cache/
+.pytype/
+.ruff_cache/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
 src/db/migrations/versions/__pycache__/
-
-# Docker
-*.log
 
 # Secrets — NEVER commit these
 *.pem
@@ -59,3 +54,4 @@ src/db/migrations/versions/__pycache__/
 secrets/
 .claude/
 .snapshots/
+docs/plan.md
