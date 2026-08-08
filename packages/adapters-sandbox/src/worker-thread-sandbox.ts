@@ -93,18 +93,18 @@ export class WorkerThreadSandbox implements SandboxPort {
         }
       });
 
-      worker.on("error", (err) => {
+      worker.on("error", (workerErr: Error) => {
         const durationMs = Date.now() - startMs;
 
         // V8 heap limit exceeded → ERR_WORKER_OUT_OF_MEMORY
-        if ((err as NodeJS.ErrnoException).code === "ERR_WORKER_OUT_OF_MEMORY") {
+        if ((workerErr as NodeJS.ErrnoException).code === "ERR_WORKER_OUT_OF_MEMORY") {
           settle({ ok: false, error: { code: "MEMORY_LIMIT_EXCEEDED", memoryMb } });
         } else {
           settle({
             ok: false,
             error: {
               code: "EXECUTION_ERROR",
-              message: err.message,
+              message: workerErr.message,
             },
           });
         }
