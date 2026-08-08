@@ -178,6 +178,19 @@ export const TOOL_REGISTRY: readonly ToolDefinition[] = [
     inputSchema: toJsonSchema(ApplyRepricingInputSchema),
     outputSchema: toJsonSchema(ApplyRepricingOutputSchema),
   },
+  {
+    name: "runCode",
+    description:
+      "Execute a JavaScript snippet in an isolated sandbox. Use to compute custom " +
+      "transformations on data before passing to domain tools. Returns stdout, stderr, " +
+      "and structured errors (SYNTAX_ERROR, TIMEOUT, MODULE_NOT_ALLOWED) for self-correction. " +
+      "Network access is always disabled. Only JavaScript is supported.",
+    dangerous: false,
+    idempotent: false,
+    costHint: "moderate",
+    inputSchema: {},
+    outputSchema: {},
+  },
 ] as const;
 
 /** Look up a tool definition by name. Returns undefined if not found. */

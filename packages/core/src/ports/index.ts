@@ -6,3 +6,4 @@ export * from "./id.port.js";
 export * from "./tool-registry.port.js";
 export * from "./idempotency-store.port.js";
 export * from "./outbox.port.js";
+export * from "./sandbox.port.js";
