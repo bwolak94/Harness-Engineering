@@ -8,10 +8,9 @@
 // ---------------------------------------------------------------------------
 
 import type { AgentRegistryPort, AgentSpec } from "../ports/agent-registry.port.js";
-import type { ModelPort } from "../ports/model.port.js";
+import type { ModelMessage, ModelPort } from "../ports/model.port.js";
 import type { RouterLink, RouterPort, RoutingDecision } from "../ports/router.port.js";
 import { selectRecentTurns } from "./context-hydrator.js";
-import type { ModelMessage } from "../ports/model.port.js";
 import type { RoutingGuard } from "./routing-guard.js";
 
 /** Minimum score fraction for a rule-based classifier to commit. */
@@ -96,12 +95,7 @@ export class LlmClassifier implements RouterLink {
       .map((a) => `- ${a.name}: ${a.description} (tools: ${a.toolNames.join(", ")})`)
       .join("\n");
 
-    const prompt =
-      `You are a routing assistant. Select the most appropriate specialist agent for the given intent.\n\n` +
-      `Available agents:\n${agentList}\n\n` +
-      `User intent: "${intent}"\n\n` +
-      `Respond with JSON only, no markdown:\n` +
-      `{"agent":"<agent_name>","confidence":<0.0-1.0>,"reason":"<brief explanation>"}`;
+    const prompt = `You are a routing assistant. Select the most appropriate specialist agent for the given intent.\n\nAvailable agents:\n${agentList}\n\nUser intent: "${intent}"\n\nRespond with JSON only, no markdown:\n{"agent":"<agent_name>","confidence":<0.0-1.0>,"reason":"<brief explanation>"}`;
 
     const result = await this.model.generate({
       messages: [{ role: "user", content: prompt }],
@@ -151,8 +145,7 @@ export class EscalationClassifier implements RouterLink {
     return {
       targetAgent: "",
       confidence: 0,
-      reason:
-        "No classifier reached sufficient confidence; human review required before routing.",
+      reason: "No classifier reached sufficient confidence; human review required before routing.",
       matchedBy: "escalation",
     };
   }

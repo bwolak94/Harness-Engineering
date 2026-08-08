@@ -181,9 +181,9 @@ function definePortContracts(suiteName: string, suite: SuiteSetup) {
 
       it("first save (expectedVersion=0) succeeds and returns version=1 on load", async () => {
         const wfId = "wf-first-save";
-        const events = [makeEvent(wfId, 0)];
+        const event = makeEvent(wfId, 0);
         let state = initialWorkflowState(wfId);
-        state = reduce(state, events[0]!);
+        state = reduce(state, event);
 
         await stateStore.save(wfId, state, 0);
 
