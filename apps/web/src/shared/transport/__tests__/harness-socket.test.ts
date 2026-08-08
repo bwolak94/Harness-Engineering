@@ -184,7 +184,6 @@ describe("HarnessSocket", () => {
     socket.disconnect();
 
     vi.useFakeTimers();
-    // biome-ignore lint/suspicious/noExplicitAny: test-only cast
     const wsMock = globalThis.WebSocket as unknown as { mock: { calls: unknown[] } };
     const wsCallCount = wsMock.mock.calls.length;
     lastWs!.simulateClose();

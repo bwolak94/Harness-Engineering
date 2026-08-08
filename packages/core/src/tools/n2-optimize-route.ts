@@ -33,7 +33,6 @@ export function createOptimizeRouteTool(
 
       // Build distance matrix (haversine)
       const nodes = [input.depot, ...input.stops.map((s) => ({ lat: s.lat, lng: s.lng }))];
-      const n = nodes.length;
       const dist = buildDistanceMatrix(nodes);
 
       // Nearest-neighbour from depot (index 0)
@@ -188,9 +187,6 @@ function validateRoute(
 ): OptimizeRouteOutput["violations"] {
   const violations: OptimizeRouteOutput["violations"] = [];
   let load = 0;
-
-  // Assume average speed 50 km/h for arrival time estimation from depot
-  const SPEED_KMH = 50;
 
   let currentTime = new Date(input.stops[route[0] ?? 0]?.windowFrom ?? new Date().toISOString());
   // Reset to depot departure time: use earliest window start of first stop as reference
