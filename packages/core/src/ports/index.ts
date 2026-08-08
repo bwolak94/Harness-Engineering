@@ -9,3 +9,5 @@ export * from "./outbox.port.js";
 export * from "./sandbox.port.js";
 export * from "./memory-store.port.js";
 export * from "./summarizer.port.js";
+export * from "./router.port.js";
+export * from "./agent-registry.port.js";

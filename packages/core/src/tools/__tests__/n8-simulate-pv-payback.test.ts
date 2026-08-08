@@ -69,7 +69,8 @@ describe("simulatePVPayback", () => {
     const out = await tool.execute(BASE_INPUT);
     const june = out.monthlyBreakdown.find((m) => m.month === 6);
     const december = out.monthlyBreakdown.find((m) => m.month === 12);
-    expect(june!.generationKwh).toBeGreaterThan(december!.generationKwh);
+    if (!june || !december) throw new Error("Expected months not found in breakdown");
+    expect(june.generationKwh).toBeGreaterThan(december.generationKwh);
   });
 
   it("higher kWp yields proportionally more generation", async () => {

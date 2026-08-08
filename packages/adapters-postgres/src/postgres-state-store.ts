@@ -34,8 +34,9 @@ export class PostgresStateStore implements StateStorePort {
       .where(eq(workflowsTable.id, workflowId))
       .limit(1);
 
-    if (wfRows.length === 0) return undefined;
-    const { version } = wfRows[0]!;
+    const wfRow = wfRows[0];
+    if (!wfRow) return undefined;
+    const { version } = wfRow;
 
     // Find the latest snapshot for fast replay start.
     const snapRows = await this.db
@@ -48,10 +49,11 @@ export class PostgresStateStore implements StateStorePort {
     let state: WorkflowState;
     let fromSeq: number;
 
-    if (snapRows.length > 0) {
+    const snapRow = snapRows[0];
+    if (snapRow) {
       // Restore from snapshot — replay only the delta.
-      state = snapRows[0]!.state as unknown as WorkflowState;
-      fromSeq = snapRows[0]!.seq + 1;
+      state = snapRow.state as unknown as WorkflowState;
+      fromSeq = snapRow.seq + 1;
     } else {
       // No snapshot yet — replay from the beginning.
       state = initialWorkflowState(workflowId);

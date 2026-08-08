@@ -96,9 +96,11 @@ describe("optimizeRoute", () => {
   });
 
   it("single stop route is valid", async () => {
+    const firstStop = BASE_INPUT.stops[0];
+    if (!firstStop) throw new Error("BASE_INPUT requires at least one stop");
     const input: OptimizeRouteInput = {
       ...BASE_INPUT,
-      stops: [BASE_INPUT.stops[0]!],
+      stops: [firstStop],
     };
     const out = await tool.execute(input);
     expect(out.sequence).toHaveLength(1);

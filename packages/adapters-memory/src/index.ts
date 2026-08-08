@@ -8,3 +8,4 @@ export * from "./in-memory-memory-store.js";
 export * from "./fixed-clock.js";
 export * from "./seeded-id-port.js";
 export * from "./fake-model-port.js";
+export * from "./in-memory-agent-registry.js";
