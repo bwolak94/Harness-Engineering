@@ -157,7 +157,8 @@ describe("WS gateway — subscribe and receive events", () => {
     ws1.send(JSON.stringify({ type: "subscribe", workflowId, lastSeq: 0 }));
 
     const historical = await app.service.getEvents(workflowId, 0);
-    const msgs1 = await wsReceive(ws1, historical.length, 2000);
+    // Simulate a client that disconnects after receiving only 2 events.
+    const msgs1 = await wsReceive(ws1, 2, 2000);
     ws1.close();
 
     const seqs1 = msgs1
