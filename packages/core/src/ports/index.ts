@@ -7,3 +7,5 @@ export * from "./tool-registry.port.js";
 export * from "./idempotency-store.port.js";
 export * from "./outbox.port.js";
 export * from "./sandbox.port.js";
+export * from "./memory-store.port.js";
+export * from "./summarizer.port.js";

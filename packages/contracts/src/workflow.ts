@@ -157,6 +157,42 @@ export const WorkflowFailedEventSchema = BaseEventSchema.extend({
   }),
 });
 
+// ---------------------------------------------------------------------------
+// context.hydrated — emitted before every model call (T09)
+// ---------------------------------------------------------------------------
+
+export const ContextHydratedEventSchema = BaseEventSchema.extend({
+  type: z.literal("context.hydrated"),
+  payload: z.object({
+    tokensBySection: z.object({
+      system: z.number().int().nonnegative(),
+      facts: z.number().int().nonnegative(),
+      summaries: z.number().int().nonnegative(),
+      recentTurns: z.number().int().nonnegative(),
+    }),
+    totalTokens: z.number().int().nonnegative(),
+    /** Hash of the stable prefix (system prompt + tool schemas). Identical hash = cache hit. */
+    prefixHash: z.string(),
+    /** Number of history messages evicted to fit within the recentTurns budget. */
+    evictedCount: z.number().int().nonnegative(),
+  }),
+});
+
+// ---------------------------------------------------------------------------
+// context.summarized — emitted when the Summarizer compresses evicted history (T09)
+// ---------------------------------------------------------------------------
+
+export const ContextSummarizedEventSchema = BaseEventSchema.extend({
+  type: z.literal("context.summarized"),
+  payload: z.object({
+    summaryId: z.string().min(1),
+    fromSeq: z.number().int().nonnegative(),
+    toSeq: z.number().int().nonnegative(),
+    messageCount: z.number().int().nonnegative(),
+    summary: z.string(),
+  }),
+});
+
 export const HarnessEventSchema = z.discriminatedUnion("type", [
   WorkflowStartedEventSchema,
   StepPlannedEventSchema,
@@ -168,6 +204,8 @@ export const HarnessEventSchema = z.discriminatedUnion("type", [
   WorkflowResumedEventSchema,
   WorkflowCompletedEventSchema,
   WorkflowFailedEventSchema,
+  ContextHydratedEventSchema,
+  ContextSummarizedEventSchema,
 ]);
 
 export type HarnessEvent = z.infer<typeof HarnessEventSchema>;
@@ -181,3 +219,5 @@ export type WorkflowSuspendedEvent = z.infer<typeof WorkflowSuspendedEventSchema
 export type WorkflowResumedEvent = z.infer<typeof WorkflowResumedEventSchema>;
 export type WorkflowCompletedEvent = z.infer<typeof WorkflowCompletedEventSchema>;
 export type WorkflowFailedEvent = z.infer<typeof WorkflowFailedEventSchema>;
+export type ContextHydratedEvent = z.infer<typeof ContextHydratedEventSchema>;
+export type ContextSummarizedEvent = z.infer<typeof ContextSummarizedEventSchema>;

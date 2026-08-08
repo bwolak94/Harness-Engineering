@@ -1,4 +1,6 @@
 import type {
+  ContextHydratedEvent,
+  ContextSummarizedEvent,
   StateCheckpointedEvent,
   StepPlannedEvent,
   TaskPacket,
@@ -20,10 +22,13 @@ import {
   NoopIdempotencyStore,
   buildIdempotencyKey,
 } from "../ports/idempotency-store.port.js";
+import { type MemoryStorePort, NoopMemoryStore } from "../ports/memory-store.port.js";
 import type { ModelContext, ModelMessage, ModelPort } from "../ports/model.port.js";
 import type { StateStorePort } from "../ports/state-store.port.js";
+import { NoopSummarizer, type SummarizerPort } from "../ports/summarizer.port.js";
 import type { ToolCallError, ToolRegistryPort } from "../ports/tool-registry.port.js";
 import { BudgetEnforcer } from "./budget-enforcer.js";
+import { type ContextBudget, ContextHydrator, DEFAULT_CONTEXT_BUDGET } from "./context-hydrator.js";
 import { reconstructConversation } from "./conversation-replay.js";
 import { LoopDetector } from "./loop-detector.js";
 import {
@@ -55,6 +60,23 @@ export interface HarnessRuntimeDeps {
    * Defaults to NoopIdempotencyStore (no caching — re-executes on resume).
    */
   idempotencyStore?: IdempotencyStorePort;
+  /**
+   * Memory store for context hydration (T09).
+   * Holds persistent facts and summaries injected into each model context.
+   * Defaults to NoopMemoryStore (no facts or summaries).
+   */
+  memoryStore?: MemoryStorePort;
+  /**
+   * Summarizer for compressing evicted history (T09).
+   * Called when evictedMessages.length >= contextBudget.summarizationThreshold.
+   * Defaults to NoopSummarizer (placeholder — no model call).
+   */
+  summarizer?: SummarizerPort;
+  /**
+   * Token budget per context section (T09).
+   * Defaults to DEFAULT_CONTEXT_BUDGET (11 500 tokens total).
+   */
+  contextBudget?: ContextBudget;
 }
 
 /** Thrown by resume() when the workflow does not exist in the state store. */
@@ -88,6 +110,10 @@ export class HarnessRuntime {
 
   async run(task: TaskPacket): Promise<WorkflowState> {
     const { model, eventLog, stateStore, toolRegistry, clock, idPort, middleware } = this.deps;
+    const memoryStore: MemoryStorePort = this.deps.memoryStore ?? new NoopMemoryStore();
+    const summarizer: SummarizerPort = this.deps.summarizer ?? new NoopSummarizer();
+    const contextBudget: ContextBudget = this.deps.contextBudget ?? DEFAULT_CONTEXT_BUDGET;
+    const hydrator = new ContextHydrator();
 
     // Use the task's own id as the workflowId so callers know it before the runtime starts.
     const workflowId = task.id;
@@ -107,10 +133,9 @@ export class HarnessRuntime {
     state = reduce(state, startedEvent);
     await stateStore.save(workflowId, state, storeVersion++);
 
-    const messages: ModelMessage[] = [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: task.goal },
-    ];
+    // Full conversation history (grows throughout the workflow).
+    // The hydrator selects a pruned subset before each model call.
+    const messages: ModelMessage[] = [{ role: "user", content: task.goal }];
 
     const enforcer = new BudgetEnforcer(task.budget);
     const detector = new LoopDetector();
@@ -183,14 +208,77 @@ export class HarnessRuntime {
         break;
       }
 
-      // --- Plan: call the model ---
+      // --- Plan: hydrate context and call the model ---
+      const toolSchemas = toolRegistry.schemas().map((def) => ({
+        name: def.name,
+        description: def.description,
+        inputSchema: def.inputSchema,
+      }));
+
+      const facts = await memoryStore.getFacts(workflowId);
+      const summaries = await memoryStore.getSummaries(workflowId);
+      const hydratedCtx = hydrator.build({
+        systemPrompt: SYSTEM_PROMPT,
+        tools: toolSchemas,
+        history: messages,
+        facts,
+        summaries,
+        budget: contextBudget,
+      });
+
+      // If messages were evicted and the threshold is reached, summarize them.
+      if (hydratedCtx.evictedMessages.length >= contextBudget.summarizationThreshold) {
+        const summaryContent = await summarizer.summarize(workflowId, hydratedCtx.evictedMessages);
+        const summaryId = idPort.newId();
+        const seqAnchor = state.seq;
+
+        await memoryStore.addSummary(workflowId, {
+          id: summaryId,
+          fromSeq: seqAnchor,
+          toSeq: seqAnchor,
+          content: summaryContent,
+          messageCount: hydratedCtx.evictedMessages.length,
+          createdAt: clock.nowIso(),
+        });
+
+        const summarizedEvent: ContextSummarizedEvent = {
+          id: idPort.newId(),
+          workflowId,
+          seq: state.seq + 1,
+          at: clock.nowIso(),
+          type: "context.summarized",
+          payload: {
+            summaryId,
+            fromSeq: seqAnchor,
+            toSeq: seqAnchor,
+            messageCount: hydratedCtx.evictedMessages.length,
+            summary: summaryContent,
+          },
+        };
+        await eventLog.append(summarizedEvent);
+        state = reduce(state, summarizedEvent);
+      }
+
+      // Emit context.hydrated — token breakdown per section, visible in inspector.
+      const hydratedEvent: ContextHydratedEvent = {
+        id: idPort.newId(),
+        workflowId,
+        seq: state.seq + 1,
+        at: clock.nowIso(),
+        type: "context.hydrated",
+        payload: {
+          tokensBySection: hydratedCtx.metadata.tokensBySection,
+          totalTokens: hydratedCtx.metadata.totalTokens,
+          prefixHash: hydratedCtx.metadata.prefixHash,
+          evictedCount: hydratedCtx.metadata.evictedCount,
+        },
+      };
+      await eventLog.append(hydratedEvent);
+      state = reduce(state, hydratedEvent);
+
       const modelCtx: ModelContext = {
-        messages,
-        tools: toolRegistry.schemas().map((def) => ({
-          name: def.name,
-          description: def.description,
-          inputSchema: def.inputSchema,
-        })),
+        messages: hydratedCtx.messages,
+        tools: toolSchemas,
         workflowId,
         taskId: task.id,
       };
@@ -393,6 +481,10 @@ export class HarnessRuntime {
     const { model, eventLog, stateStore, toolRegistry, clock, idPort, middleware } = this.deps;
     const idempotencyStore: IdempotencyStorePort =
       this.deps.idempotencyStore ?? new NoopIdempotencyStore();
+    const memoryStore: MemoryStorePort = this.deps.memoryStore ?? new NoopMemoryStore();
+    const summarizer: SummarizerPort = this.deps.summarizer ?? new NoopSummarizer();
+    const contextBudget: ContextBudget = this.deps.contextBudget ?? DEFAULT_CONTEXT_BUDGET;
+    const hydrator = new ContextHydrator();
 
     // --- Load state ---
     const versioned = await stateStore.load(workflowId);
@@ -402,13 +494,32 @@ export class HarnessRuntime {
     let { state } = versioned;
     let storeVersion = versioned.version;
 
+    // --- Reconstruct conversation from event log ---
+    // Done before the terminal check so that memory store is always repopulated,
+    // allowing callers to inspect summaries even for completed workflows.
+    const events = await eventLog.read(workflowId);
+
+    // Cache-Aside: repopulate MemoryStore from context.summarized events.
+    // This ensures that a fresh MemoryStore (new process after crash) gets all
+    // summaries without calling the Summarizer again (cost = 0).
+    for (const evt of events) {
+      if (evt.type === "context.summarized") {
+        await memoryStore.addSummary(workflowId, {
+          id: evt.payload.summaryId,
+          fromSeq: evt.payload.fromSeq,
+          toSeq: evt.payload.toSeq,
+          content: evt.payload.summary,
+          messageCount: evt.payload.messageCount,
+          createdAt: evt.at,
+        });
+      }
+    }
+
     // --- Already terminal: nothing to resume ---
     if (state.status === "completed" || state.status === "failed" || state.status === "halted") {
       return state;
     }
 
-    // --- Reconstruct conversation from event log ---
-    const events = await eventLog.read(workflowId);
     const { task, messages, inFlightCalls } = reconstructConversation(events);
 
     // Fast-forward local state by replaying events that are newer than the
@@ -609,13 +720,74 @@ export class HarnessRuntime {
         break;
       }
 
+      const toolSchemas = toolRegistry.schemas().map((def) => ({
+        name: def.name,
+        description: def.description,
+        inputSchema: def.inputSchema,
+      }));
+
+      const facts = await memoryStore.getFacts(workflowId);
+      const summaries = await memoryStore.getSummaries(workflowId);
+      const hydratedCtx = hydrator.build({
+        systemPrompt: SYSTEM_PROMPT,
+        tools: toolSchemas,
+        history: messages,
+        facts,
+        summaries,
+        budget: contextBudget,
+      });
+
+      if (hydratedCtx.evictedMessages.length >= contextBudget.summarizationThreshold) {
+        const summaryContent = await summarizer.summarize(workflowId, hydratedCtx.evictedMessages);
+        const summaryId = idPort.newId();
+        const seqAnchor = state.seq;
+
+        await memoryStore.addSummary(workflowId, {
+          id: summaryId,
+          fromSeq: seqAnchor,
+          toSeq: seqAnchor,
+          content: summaryContent,
+          messageCount: hydratedCtx.evictedMessages.length,
+          createdAt: clock.nowIso(),
+        });
+
+        const summarizedEvent: ContextSummarizedEvent = {
+          id: idPort.newId(),
+          workflowId,
+          seq: state.seq + 1,
+          at: clock.nowIso(),
+          type: "context.summarized",
+          payload: {
+            summaryId,
+            fromSeq: seqAnchor,
+            toSeq: seqAnchor,
+            messageCount: hydratedCtx.evictedMessages.length,
+            summary: summaryContent,
+          },
+        };
+        await eventLog.append(summarizedEvent);
+        state = reduce(state, summarizedEvent);
+      }
+
+      const hydratedEvent: ContextHydratedEvent = {
+        id: idPort.newId(),
+        workflowId,
+        seq: state.seq + 1,
+        at: clock.nowIso(),
+        type: "context.hydrated",
+        payload: {
+          tokensBySection: hydratedCtx.metadata.tokensBySection,
+          totalTokens: hydratedCtx.metadata.totalTokens,
+          prefixHash: hydratedCtx.metadata.prefixHash,
+          evictedCount: hydratedCtx.metadata.evictedCount,
+        },
+      };
+      await eventLog.append(hydratedEvent);
+      state = reduce(state, hydratedEvent);
+
       const modelCtx: ModelContext = {
-        messages,
-        tools: toolRegistry.schemas().map((def) => ({
-          name: def.name,
-          description: def.description,
-          inputSchema: def.inputSchema,
-        })),
+        messages: hydratedCtx.messages,
+        tools: toolSchemas,
         workflowId,
         taskId: task.id,
       };
