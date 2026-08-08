@@ -135,6 +135,26 @@ export function reduce(state: WorkflowState, event: HarnessEvent): WorkflowState
     case "agent.handoff":
       return { ...state, seq: event.seq };
 
+    // subagent.started / subagent.completed / subagent.failed are fan-out lifecycle
+    // observability events (T11). They advance seq but do not change workflow status.
+    case "subagent.started":
+      return { ...state, seq: event.seq };
+
+    case "subagent.completed":
+      return { ...state, seq: event.seq };
+
+    case "subagent.failed":
+      return { ...state, seq: event.seq };
+
+    // supervisor.synthesized marks the end of a fan-out operation (T11).
+    // When partial=true the outer workflow is in completed_partial status.
+    case "supervisor.synthesized":
+      return {
+        ...state,
+        seq: event.seq,
+        status: event.payload.partial ? "completed_partial" : state.status,
+      };
+
     default:
       return assertNever(event);
   }

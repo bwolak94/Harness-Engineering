@@ -1,5 +1,6 @@
 import type { ToolDefinition } from "@harness/contracts";
 import { getToolDefinition } from "@harness/contracts/tools";
+import { Supervisor } from "../application/supervisor.js";
 import {
   composeDecorators,
   withPolicy,
@@ -15,6 +16,7 @@ import type { ToolExecutor } from "../ports/tool-registry.port.js";
 import { createAnalyzeInvestmentTool } from "./n1-analyze-investment.js";
 import { createOptimizeRouteTool } from "./n2-optimize-route.js";
 import { createCalculateLandedCostTool } from "./n3-calculate-landed-cost.js";
+import { createScreenCandidatesTool } from "./n6-screen-candidates.js";
 import { createSimulatePVPaybackTool } from "./n8-simulate-pv-payback.js";
 import { createCalculateNetSalaryTool } from "./n9-calculate-net-salary.js";
 import { createProposeRepricingTool } from "./n10-propose-repricing.js";
@@ -24,6 +26,8 @@ import { createRunCodeTool } from "./run-code.js";
 export { createAnalyzeInvestmentTool } from "./n1-analyze-investment.js";
 export { createOptimizeRouteTool } from "./n2-optimize-route.js";
 export { createCalculateLandedCostTool } from "./n3-calculate-landed-cost.js";
+export { createScreenCandidatesTool } from "./n6-screen-candidates.js";
+export type { ScreenCandidatesDeps } from "./n6-screen-candidates.js";
 export { createSimulatePVPaybackTool } from "./n8-simulate-pv-payback.js";
 export { createCalculateNetSalaryTool } from "./n9-calculate-net-salary.js";
 export { createProposeRepricingTool } from "./n10-propose-repricing.js";
@@ -101,10 +105,16 @@ function decorate(executor: ToolExecutor): ToolExecutor {
  *   — zero changes to HarnessRuntime.
  */
 export function createDefaultToolExecutors(): ToolExecutor[] {
+  // Default Supervisor for N6 — concurrency limit of 10 parallel candidate evaluations.
+  const supervisor = new Supervisor(10);
+
   return [
     decorate(asExecutor(createAnalyzeInvestmentTool(requireDefinition("analyzeInvestment")))),
     decorate(asExecutor(createOptimizeRouteTool(requireDefinition("optimizeRoute")))),
     decorate(asExecutor(createCalculateLandedCostTool(requireDefinition("calculateLandedCost")))),
+    decorate(
+      asExecutor(createScreenCandidatesTool(requireDefinition("screenCandidates"), { supervisor })),
+    ),
     decorate(asExecutor(createSimulatePVPaybackTool(requireDefinition("simulatePVPayback")))),
     decorate(asExecutor(createCalculateNetSalaryTool(requireDefinition("calculateNetSalary")))),
     decorate(asExecutor(createProposeRepricingTool(requireDefinition("proposeRepricing")))),
