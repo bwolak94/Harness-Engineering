@@ -119,8 +119,10 @@ describe("WS gateway — subscribe and receive events", () => {
 
     ws.send(JSON.stringify({ type: "subscribe", workflowId, lastSeq: 0 }));
 
-    // Expect at least: workflow.started + workflow.completed (2 events minimum)
-    const msgs = await wsReceive(ws, 2, 3000);
+    // Expect at least: workflow.started + context.hydrated + workflow.completed (3 events minimum).
+    // T09 adds a context.hydrated event before each model call, so there are now ≥3 events
+    // even for a single-turn workflow.
+    const msgs = await wsReceive(ws, 3, 3000);
 
     const types = msgs
       .filter((m): m is import("@harness/contracts/ws").WsEventMessage => m.type === "event")

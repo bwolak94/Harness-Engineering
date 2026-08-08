@@ -122,6 +122,14 @@ export function reduce(state: WorkflowState, event: HarnessEvent): WorkflowState
         error: event.payload.message,
       };
 
+    // context.hydrated and context.summarized are observability events (T09).
+    // They advance seq but do not change any other workflow state field.
+    case "context.hydrated":
+      return { ...state, seq: event.seq };
+
+    case "context.summarized":
+      return { ...state, seq: event.seq };
+
     default:
       return assertNever(event);
   }
