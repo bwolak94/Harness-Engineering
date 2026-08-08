@@ -183,16 +183,20 @@ describe("validation error handling", () => {
     }
   });
 
-  it("runCode returns an error (NOT_IMPLEMENTED stub), not APPROVAL_REQUIRED", async () => {
+  it("runCode with NoopSandbox returns structured error output, not APPROVAL_REQUIRED", async () => {
     const registry = buildRegistry();
     const executor = registry.get("runCode");
     if (!executor) throw new Error("runCode not in registry");
-    const result = await executor.execute({ language: "python", code: "print(1)" });
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      // runCode is not dangerous → policy allows it → EXECUTION_ERROR from the stub throw
-      expect(result.error.code).not.toBe("APPROVAL_REQUIRED");
-      expect(result.error.code).toBe("EXECUTION_ERROR");
+    const result = await executor.execute({ language: "javascript", code: "console.log(1)" });
+    // runCode is not dangerous → policy allows execution → tool succeeds (ok: true)
+    // withResultTruncation serialises the output to JSON string.
+    // The NoopSandbox embeds a structured EXECUTION_ERROR inside the tool output.
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      // result.value is a JSON string after withResultTruncation
+      const json = JSON.parse(result.value as string) as { ok: boolean; error?: { code: string } };
+      expect(json.ok).toBe(false);
+      expect(json.error?.code).toBe("EXECUTION_ERROR");
     }
   });
 });

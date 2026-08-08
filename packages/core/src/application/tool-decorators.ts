@@ -204,7 +204,6 @@ export function withTelemetry(label?: string): ToolExecutorDecorator {
       const start = Date.now();
       const result = await executor.execute(args, signal);
       const durationMs = Date.now() - start;
-      // biome-ignore lint/suspicious/noConsole: telemetry placeholder until T13
       console.debug(`[telemetry] ${name} completed in ${durationMs}ms ok=${result.ok}`);
       return result;
     },
