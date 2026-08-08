@@ -9,6 +9,8 @@ export const WorkflowStatusSchema = z.enum([
   "running",
   "suspended",
   "completed",
+  // completed_partial: supervisor synthesis finished but at least one subagent failed (T11)
+  "completed_partial",
   "failed",
   "halted",
 ]);
@@ -48,6 +50,8 @@ export const TaskPacketSchema = z.object({
   constraints: z.record(z.string(), z.unknown()).optional(),
   budget: BudgetSchema,
   metadata: z.record(z.string(), z.unknown()).optional(),
+  /** Set when this task is a subagent spawned by a Supervisor (T11). */
+  parentWorkflowId: z.string().optional(),
 });
 
 export type TaskPacket = z.infer<typeof TaskPacketSchema>;
@@ -214,6 +218,53 @@ export const AgentHandoffEventSchema = BaseEventSchema.extend({
   }),
 });
 
+// ---------------------------------------------------------------------------
+// subagent.started / subagent.completed / subagent.failed — fan-out lifecycle (T11)
+// ---------------------------------------------------------------------------
+
+export const SubagentStartedEventSchema = BaseEventSchema.extend({
+  type: z.literal("subagent.started"),
+  payload: z.object({
+    taskId: z.string().min(1),
+    parentWorkflowId: z.string().min(1),
+  }),
+});
+
+export const SubagentCompletedEventSchema = BaseEventSchema.extend({
+  type: z.literal("subagent.completed"),
+  payload: z.object({
+    taskId: z.string().min(1),
+    parentWorkflowId: z.string().min(1),
+    durationMs: z.number().nonnegative(),
+  }),
+});
+
+export const SubagentFailedEventSchema = BaseEventSchema.extend({
+  type: z.literal("subagent.failed"),
+  payload: z.object({
+    taskId: z.string().min(1),
+    parentWorkflowId: z.string().min(1),
+    reason: z.string(),
+  }),
+});
+
+// ---------------------------------------------------------------------------
+// supervisor.synthesized — fan-out complete, results collected (T11)
+// ---------------------------------------------------------------------------
+
+export const SupervisorSynthesizedEventSchema = BaseEventSchema.extend({
+  type: z.literal("supervisor.synthesized"),
+  payload: z.object({
+    parentWorkflowId: z.string().min(1),
+    totalTasks: z.number().int().nonnegative(),
+    successCount: z.number().int().nonnegative(),
+    failedCount: z.number().int().nonnegative(),
+    /** True when at least one subagent failed — maps to completed_partial status. */
+    partial: z.boolean(),
+    summary: z.string(),
+  }),
+});
+
 export const HarnessEventSchema = z.discriminatedUnion("type", [
   WorkflowStartedEventSchema,
   StepPlannedEventSchema,
@@ -228,6 +279,10 @@ export const HarnessEventSchema = z.discriminatedUnion("type", [
   ContextHydratedEventSchema,
   ContextSummarizedEventSchema,
   AgentHandoffEventSchema,
+  SubagentStartedEventSchema,
+  SubagentCompletedEventSchema,
+  SubagentFailedEventSchema,
+  SupervisorSynthesizedEventSchema,
 ]);
 
 export type HarnessEvent = z.infer<typeof HarnessEventSchema>;
@@ -244,3 +299,7 @@ export type WorkflowFailedEvent = z.infer<typeof WorkflowFailedEventSchema>;
 export type ContextHydratedEvent = z.infer<typeof ContextHydratedEventSchema>;
 export type ContextSummarizedEvent = z.infer<typeof ContextSummarizedEventSchema>;
 export type AgentHandoffEvent = z.infer<typeof AgentHandoffEventSchema>;
+export type SubagentStartedEvent = z.infer<typeof SubagentStartedEventSchema>;
+export type SubagentCompletedEvent = z.infer<typeof SubagentCompletedEventSchema>;
+export type SubagentFailedEvent = z.infer<typeof SubagentFailedEventSchema>;
+export type SupervisorSynthesizedEvent = z.infer<typeof SupervisorSynthesizedEventSchema>;

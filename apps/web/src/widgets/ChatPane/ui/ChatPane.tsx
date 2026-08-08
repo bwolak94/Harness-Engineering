@@ -129,6 +129,7 @@ function StatusBadge({ status }: { status: WorkflowState["status"] }) {
     pending: "neutral",
     running: "default",
     completed: "success",
+    completed_partial: "warn",
     failed: "error",
     halted: "warn",
     suspended: "warn",
