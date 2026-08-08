@@ -1,20 +1,15 @@
-import { describe, expect, it } from "vitest";
-import {
-  DEFAULT_AGENTS,
-  DEFAULT_RULES,
-  FakeModelPort,
-  InMemoryAgentRegistry,
-} from "../index.js";
 import { HandoffPayloadSchema } from "@harness/contracts";
 import {
   EscalationClassifier,
   LlmClassifier,
-  RuleBasedClassifier,
   Router,
   RoutingGuard,
+  RuleBasedClassifier,
   buildContextSlice,
   estimateTokens,
 } from "@harness/core";
+import { describe, expect, it } from "vitest";
+import { DEFAULT_AGENTS, DEFAULT_RULES, FakeModelPort, InMemoryAgentRegistry } from "../index.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -311,24 +306,20 @@ describe("HandoffPayload schema validation", () => {
   });
 
   it("rejects confidence below 0", () => {
-    expect(
-      HandoffPayloadSchema.safeParse({ ...validPayload, confidence: -0.1 }).success,
-    ).toBe(false);
+    expect(HandoffPayloadSchema.safeParse({ ...validPayload, confidence: -0.1 }).success).toBe(
+      false,
+    );
   });
 
   it("rejects confidence above 1", () => {
-    expect(
-      HandoffPayloadSchema.safeParse({ ...validPayload, confidence: 1.1 }).success,
-    ).toBe(false);
+    expect(HandoffPayloadSchema.safeParse({ ...validPayload, confidence: 1.1 }).success).toBe(
+      false,
+    );
   });
 
   it("accepts confidence at the boundary values 0 and 1", () => {
-    expect(
-      HandoffPayloadSchema.safeParse({ ...validPayload, confidence: 0 }).success,
-    ).toBe(true);
-    expect(
-      HandoffPayloadSchema.safeParse({ ...validPayload, confidence: 1 }).success,
-    ).toBe(true);
+    expect(HandoffPayloadSchema.safeParse({ ...validPayload, confidence: 0 }).success).toBe(true);
+    expect(HandoffPayloadSchema.safeParse({ ...validPayload, confidence: 1 }).success).toBe(true);
   });
 
   it("rejects an unknown matchedBy value", () => {
