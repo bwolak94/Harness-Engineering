@@ -151,14 +151,16 @@ describe("WS gateway — subscribe and receive events", () => {
       });
     });
 
-    // First client: subscribe from seq 0, read all events
+    // Fetch historical events before opening any WS connection (workflow is complete).
+    const historical = await app.service.getEvents(workflowId, 0);
+
+    // First client: subscribe from seq 0, disconnect after receiving only 2 events.
+    // Attach the listener BEFORE sending subscribe so no early messages are missed.
     const ws1 = wsConnect(app.port);
     await wsOpen(ws1);
+    const msgs1Promise = wsReceive(ws1, 2, 2000);
     ws1.send(JSON.stringify({ type: "subscribe", workflowId, lastSeq: 0 }));
-
-    const historical = await app.service.getEvents(workflowId, 0);
-    // Simulate a client that disconnects after receiving only 2 events.
-    const msgs1 = await wsReceive(ws1, 2, 2000);
+    const msgs1 = await msgs1Promise;
     ws1.close();
 
     const seqs1 = msgs1
@@ -166,24 +168,26 @@ describe("WS gateway — subscribe and receive events", () => {
       .map((m) => m.event.seq)
       .sort((a, b) => a - b);
 
-    // Simulate disconnect after first 2 events; lastSeq is the NEXT expected seq
-    // (i.e. resume from seq N means "I've seen 0..N-1, give me N onwards")
-    const lastSeenSeq = seqs1[1] ?? 0;
+    // Use the highest seq seen by ws1 as the resume point.
+    const lastSeenSeq = seqs1[seqs1.length - 1] ?? -1;
     const resumeFromSeq = lastSeenSeq + 1;
 
     // Reconnect from resumeFromSeq
     const ws2 = wsConnect(app.port);
     await wsOpen(ws2);
-    ws2.send(JSON.stringify({ type: "subscribe", workflowId, lastSeq: resumeFromSeq }));
 
     const remaining = historical.filter((e) => e.seq >= resumeFromSeq);
     if (remaining.length === 0) {
-      // All events were already seen — nothing more to receive (workflow was very fast)
+      // All events were already seen — nothing more to receive
       ws2.close();
       await app.close();
       return;
     }
-    const msgs2 = await wsReceive(ws2, remaining.length, 2000);
+
+    // Attach listener BEFORE sending subscribe.
+    const msgs2Promise = wsReceive(ws2, remaining.length, 2000);
+    ws2.send(JSON.stringify({ type: "subscribe", workflowId, lastSeq: resumeFromSeq }));
+    const msgs2 = await msgs2Promise;
     ws2.close();
 
     const seqs2 = msgs2
