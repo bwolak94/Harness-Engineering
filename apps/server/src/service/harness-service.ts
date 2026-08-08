@@ -90,4 +90,16 @@ export class HarnessService {
   async getEvents(workflowId: string, fromSeq = 0): Promise<readonly HarnessEvent[]> {
     return this.eventLog.read(workflowId, fromSeq);
   }
+
+  /**
+   * Resume a previously interrupted workflow.
+   * Reconstructs state from the event log and continues execution from where
+   * the process crashed. Emits a workflow.resumed event and re-executes any
+   * in-flight tool calls using the idempotency store for crash-safe recovery.
+   *
+   * Returns the final WorkflowState (completed, failed, or halted).
+   */
+  async resume(workflowId: string): Promise<WorkflowState> {
+    return this.runtime.resume(workflowId);
+  }
 }

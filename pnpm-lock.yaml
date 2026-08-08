@@ -66,6 +66,9 @@ importers:
       '@types/ws':
         specifier: ^8.5.13
         version: 8.18.1
+      tsx:
+        specifier: ^4.19.2
+        version: 4.23.10
       typescript:
         specifier: ^5.7.2
         version: 5.9.3

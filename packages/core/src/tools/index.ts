@@ -22,6 +22,8 @@ export { createAnalyzeInvestmentTool } from "./n1-analyze-investment.js";
 export { createCalculateLandedCostTool } from "./n3-calculate-landed-cost.js";
 export { createCalculateNetSalaryTool } from "./n9-calculate-net-salary.js";
 export { createProposeRepricingTool } from "./n10-propose-repricing.js";
+export { createApplyRepricingTool } from "./n11-apply-repricing.js";
+export type { ApplyRepricingDeps } from "./n11-apply-repricing.js";
 export { createRunCodeTool } from "./run-code.js";
 
 // ---------------------------------------------------------------------------
