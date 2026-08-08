@@ -10,3 +10,5 @@ export * from "./tool-policy.js";
 export * from "./truncation.js";
 export * from "./tool-decorators.js";
 export * from "./context-hydrator.js";
+export * from "./router.js";
+export * from "./routing-guard.js";

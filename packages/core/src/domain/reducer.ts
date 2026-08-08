@@ -130,6 +130,11 @@ export function reduce(state: WorkflowState, event: HarnessEvent): WorkflowState
     case "context.summarized":
       return { ...state, seq: event.seq };
 
+    // agent.handoff is a routing event (T10).
+    // It advances seq and records the active agent but leaves all other state intact.
+    case "agent.handoff":
+      return { ...state, seq: event.seq };
+
     default:
       return assertNever(event);
   }

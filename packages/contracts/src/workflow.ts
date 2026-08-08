@@ -193,6 +193,27 @@ export const ContextSummarizedEventSchema = BaseEventSchema.extend({
   }),
 });
 
+// ---------------------------------------------------------------------------
+// agent.handoff — emitted when the router transfers control to another agent (T10)
+// ---------------------------------------------------------------------------
+
+export const AgentHandoffEventSchema = BaseEventSchema.extend({
+  type: z.literal("agent.handoff"),
+  payload: z.object({
+    fromAgent: z.string().min(1),
+    toAgent: z.string().min(1),
+    reason: z.string().min(1),
+    /** How the routing decision was made. */
+    matchedBy: z.enum(["rule", "llm", "escalation"]),
+    /** Routing confidence in [0, 1]. */
+    confidence: z.number().min(0).max(1),
+    /** Sequential hop index (0 = first handoff). */
+    hop: z.number().int().nonnegative(),
+    /** Token-bounded subset of the conversation passed to the target agent. */
+    contextSlice: z.unknown(),
+  }),
+});
+
 export const HarnessEventSchema = z.discriminatedUnion("type", [
   WorkflowStartedEventSchema,
   StepPlannedEventSchema,
@@ -206,6 +227,7 @@ export const HarnessEventSchema = z.discriminatedUnion("type", [
   WorkflowFailedEventSchema,
   ContextHydratedEventSchema,
   ContextSummarizedEventSchema,
+  AgentHandoffEventSchema,
 ]);
 
 export type HarnessEvent = z.infer<typeof HarnessEventSchema>;
@@ -221,3 +243,4 @@ export type WorkflowCompletedEvent = z.infer<typeof WorkflowCompletedEventSchema
 export type WorkflowFailedEvent = z.infer<typeof WorkflowFailedEventSchema>;
 export type ContextHydratedEvent = z.infer<typeof ContextHydratedEventSchema>;
 export type ContextSummarizedEvent = z.infer<typeof ContextSummarizedEventSchema>;
+export type AgentHandoffEvent = z.infer<typeof AgentHandoffEventSchema>;
