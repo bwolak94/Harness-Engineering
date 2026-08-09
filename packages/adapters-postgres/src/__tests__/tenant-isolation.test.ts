@@ -56,7 +56,7 @@ async function queryAsTenant(
   try {
     await client.query("BEGIN");
     await client.query("SET LOCAL ROLE app_rw");
-    await client.query("SET LOCAL app.tenant_id = $1", [tenantId]);
+    await client.query("SELECT set_config('app.tenant_id', $1, true)", [tenantId]);
     const result = await client.query(sql, params);
     await client.query("COMMIT");
     return result.rows as Record<string, unknown>[];
@@ -464,13 +464,18 @@ describe.skipIf(!dockerAvailable)("tenant isolation (Postgres/Testcontainers)", 
     });
 
     it("job_queue: partial index used for queue poll (locked_by IS NULL)", async () => {
-      const result = await pool.query<{ "QUERY PLAN": string }>(
-        `EXPLAIN SELECT * FROM job_queue
-         WHERE locked_by IS NULL ORDER BY run_after LIMIT 1`,
-      );
-      const plan = result.rows.map((r) => r["QUERY PLAN"]).join("\n");
-      // Index on (run_after) WHERE locked_by IS NULL should appear
-      expect(plan).toMatch(/idx_job_queue_run_after/i);
+      // SET enable_seqscan = off forces the planner to use indexes even on small test tables.
+      // This verifies the index EXISTS and the query is compatible with it.
+      await pool.query("SET enable_seqscan = off");
+      try {
+        const result = await pool.query<{ "QUERY PLAN": string }>(
+          "EXPLAIN SELECT * FROM job_queue WHERE locked_by IS NULL ORDER BY run_after LIMIT 1",
+        );
+        const plan = result.rows.map((r) => r["QUERY PLAN"]).join("\n");
+        expect(plan).toMatch(/idx_job_queue_run_after/i);
+      } finally {
+        await pool.query("SET enable_seqscan = on");
+      }
     });
 
     it("workflows: composite index used for tenant+status dashboard query", async () => {
@@ -478,16 +483,21 @@ describe.skipIf(!dockerAvailable)("tenant isolation (Postgres/Testcontainers)", 
         "INSERT INTO workflows (id, tenant_id, status) VALUES ($1, $2, 'running')",
         ["wf-dash", TENANT_A],
       );
-      // Run ANALYZE so planner statistics are fresh
       await pool.query("ANALYZE workflows");
-      const result = await pool.query<{ "QUERY PLAN": string }>(
-        `EXPLAIN SELECT id FROM workflows
-         WHERE tenant_id = $1 AND status = 'running'
-         ORDER BY created_at DESC LIMIT 10`,
-        [TENANT_A],
-      );
-      const plan = result.rows.map((r) => r["QUERY PLAN"]).join("\n");
-      expect(plan).toMatch(/idx_workflows_tenant_status_created/i);
+      // Force index usage — planner ignores indexes on tiny tables without this hint
+      await pool.query("SET enable_seqscan = off");
+      try {
+        const result = await pool.query<{ "QUERY PLAN": string }>(
+          `EXPLAIN SELECT id FROM workflows
+           WHERE tenant_id = $1 AND status = 'running'
+           ORDER BY created_at DESC LIMIT 10`,
+          [TENANT_A],
+        );
+        const plan = result.rows.map((r) => r["QUERY PLAN"]).join("\n");
+        expect(plan).toMatch(/idx_workflows_tenant_status_created/i);
+      } finally {
+        await pool.query("SET enable_seqscan = on");
+      }
     });
   });
 

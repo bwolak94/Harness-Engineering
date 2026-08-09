@@ -3,7 +3,7 @@ import type { Pool, PoolClient } from "pg";
 /**
  * withTenantCtx — executes `fn` inside a Postgres transaction with:
  *
- *   SET LOCAL app.tenant_id = '<tenantId>';
+ *   SELECT set_config('app.tenant_id', '<tenantId>', true);
  *   SET LOCAL ROLE app_rw;
  *
  * This ensures every query in `fn` is subject to Row-Level Security. The
@@ -23,8 +23,9 @@ export async function withTenantCtx<T>(
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    // SET LOCAL is scoped to the current transaction — resets on COMMIT/ROLLBACK.
-    await client.query("SET LOCAL app.tenant_id = $1", [tenantId]);
+    // set_config with is_local=true is transaction-scoped and accepts bind params.
+    // SET LOCAL var = $1 is a syntax error in PostgreSQL — SET does not accept params.
+    await client.query("SELECT set_config('app.tenant_id', $1, true)", [tenantId]);
     await client.query("SET LOCAL ROLE app_rw");
     const result = await fn(client);
     await client.query("COMMIT");
