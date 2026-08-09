@@ -17,7 +17,8 @@
     "test:coverage": "vitest run --coverage",
     "build": "pnpm -r build",
     "db:ping": "node --input-type=module --eval \"import { Client } from 'pg'; const c = new Client({ connectionString: process.env.DATABASE_URL }); await c.connect(); console.log('ok'); await c.end();\"",
-    "gen:schemas": "pnpm --filter @harness/contracts gen:schemas"
+    "gen:schemas": "pnpm --filter @harness/contracts gen:schemas",
+    "eval": "pnpm --filter @harness/evals run eval"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

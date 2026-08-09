@@ -265,6 +265,9 @@ importers:
 
   packages/evals:
     dependencies:
+      '@harness/adapters-memory':
+        specifier: workspace:*
+        version: link:../adapters-memory
       '@harness/contracts':
         specifier: workspace:*
         version: link:../contracts
@@ -272,6 +275,9 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      tsx:
+        specifier: ^4.19.2
+        version: 4.23.10
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
