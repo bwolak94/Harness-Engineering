@@ -51,16 +51,16 @@ export function createAssessClaimTool(
       const depreciationPct = findDepreciation(claim.itemAge, policy.depreciationTable);
       const depreciation = (claim.estimatedLoss * depreciationPct) / 100;
       if (depreciation > 0) {
-        reasons.push(`Depreciation ${depreciationPct}% applied (item age: ${claim.itemAge} years): -${depreciation.toFixed(2)}`);
+        reasons.push(
+          `Depreciation ${depreciationPct}% applied (item age: ${claim.itemAge} years): -${depreciation.toFixed(2)}`,
+        );
       }
 
       const lossAfterDepreciation = claim.estimatedLoss - depreciation;
 
       // 2. Underinsurance factor
       const underinsuranceFactor =
-        claim.estimatedLoss > policy.sumInsured
-          ? policy.sumInsured / claim.estimatedLoss
-          : 1.0;
+        claim.estimatedLoss > policy.sumInsured ? policy.sumInsured / claim.estimatedLoss : 1.0;
 
       if (underinsuranceFactor < 1) {
         reasons.push(
@@ -79,7 +79,9 @@ export function createAssessClaimTool(
         // Integral: deductible only applies when adjusted loss > deductible
         if (adjustedLoss <= policy.deductible) {
           payoutAfterDeductible = 0;
-          reasons.push(`Integral deductible ${policy.deductible}: claim fully absorbed (loss ${adjustedLoss.toFixed(2)} ≤ deductible)`);
+          reasons.push(
+            `Integral deductible ${policy.deductible}: claim fully absorbed (loss ${adjustedLoss.toFixed(2)} ≤ deductible)`,
+          );
         } else {
           payoutAfterDeductible = adjustedLoss - policy.deductible;
           reasons.push(`Integral deductible applied: -${policy.deductible}`);

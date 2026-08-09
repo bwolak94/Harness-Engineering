@@ -2,7 +2,6 @@ import type {
   ApprovalGrantedEvent,
   ApprovalRejectedEvent,
   ApprovalRequestedEvent,
-  ApprovalTimedOutEvent,
   ApprovalResponse,
   ContextHydratedEvent,
   ContextSummarizedEvent,
@@ -20,7 +19,7 @@ import type {
 import { reduce } from "../domain/reducer.js";
 import { initialWorkflowState } from "../domain/workflow-state.js";
 import type { WorkflowState } from "../domain/workflow-state.js";
-import { NoopApprovalStore, type ApprovalStorePort } from "../ports/approval-store.port.js";
+import { type ApprovalStorePort, NoopApprovalStore } from "../ports/approval-store.port.js";
 import type { ClockPort } from "../ports/clock.port.js";
 import type { EventLogPort } from "../ports/event-log.port.js";
 import type { IdPort } from "../ports/id.port.js";
@@ -45,8 +44,8 @@ import {
   withLoopDetection,
   withTiming,
 } from "./middleware.js";
-import { isDangerous, type ToolPolicy } from "./tool-policy.js";
 import { type ToolCallInput, createStepBag } from "./step.js";
+import { type ToolPolicy, isDangerous } from "./tool-policy.js";
 
 export interface HarnessRuntimeDeps {
   model: ModelPort;
@@ -1204,10 +1203,7 @@ export class HarnessRuntime {
    * @throws {WorkflowNotSuspendedError} if the workflow is not in "suspended" status.
    * @throws {ApprovalRequestNotFoundError} if no pending request exists for the workflow.
    */
-  async resumeWithDecision(
-    workflowId: string,
-    response: ApprovalResponse,
-  ): Promise<WorkflowState> {
+  async resumeWithDecision(workflowId: string, response: ApprovalResponse): Promise<WorkflowState> {
     const { model, eventLog, stateStore, toolRegistry, clock, idPort, middleware } = this.deps;
     const idempotencyStore: IdempotencyStorePort =
       this.deps.idempotencyStore ?? new NoopIdempotencyStore();
@@ -1439,7 +1435,10 @@ export class HarnessRuntime {
       const input = ctx.step.input as ToolCallInput;
       const executor = toolRegistry.get(input.toolName);
       if (!executor) {
-        const available = toolRegistry.list().map((e) => e.definition.name).join(", ");
+        const available = toolRegistry
+          .list()
+          .map((e) => e.definition.name)
+          .join(", ");
         ctx.bag.error = {
           code: "TOOL_NOT_FOUND",
           message: `Tool '${input.toolName}' is not registered. Available tools: ${available || "none"}`,

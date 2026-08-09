@@ -1,15 +1,15 @@
 import type { ApprovalResponse } from "@harness/contracts";
 import { getToolDefinition } from "@harness/contracts/tools";
 import {
+  ApprovalRequestNotFoundError,
   HarnessRuntime,
   WorkflowNotSuspendedError,
-  ApprovalRequestNotFoundError,
   aboveClaimAmount,
-  isDangerous,
   asExecutor,
+  isDangerous,
 } from "@harness/core";
-import { createDefaultToolExecutors, createApplyRepricingTool } from "@harness/core/tools";
-import { describe, it, expect, beforeEach } from "vitest";
+import { createApplyRepricingTool, createDefaultToolExecutors } from "@harness/core/tools";
+import { beforeEach, describe, expect, it } from "vitest";
 import { FakeModelPort } from "../fake-model-port.js";
 import { FixedClock } from "../fixed-clock.js";
 import { InMemoryApprovalStore } from "../in-memory-approval-store.js";
@@ -344,7 +344,7 @@ describe("T12 — Human-in-the-loop", () => {
       approvalStore,
       idPort,
       clock,
-      eventLog: sharedEventLog,   // same persistent log
+      eventLog: sharedEventLog, // same persistent log
       stateStore: sharedStateStore, // same persistent state
     });
 
@@ -490,23 +490,24 @@ describe("T12 — Human-in-the-loop", () => {
   it.each(["applyRepricing"])(
     "dangerous tool %s → requires approval (isDangerous policy)",
     async (toolName) => {
-    const approvalStore = new InMemoryApprovalStore();
+      const approvalStore = new InMemoryApprovalStore();
 
-    // Build minimal args for this tool — we just need any call to trigger policy
-    const model = FakeModelPort.singleToolCall(toolName, {});
-    const { runtime } = buildRuntime({
-      modelPort: model,
-      approvalStore,
-      approvalPolicy: isDangerous(),
-      idPort,
-      clock,
-    });
-    const state = await runtime.run(makeTask(`wf-dangerous-${toolName}`));
+      // Build minimal args for this tool — we just need any call to trigger policy
+      const model = FakeModelPort.singleToolCall(toolName, {});
+      const { runtime } = buildRuntime({
+        modelPort: model,
+        approvalStore,
+        approvalPolicy: isDangerous(),
+        idPort,
+        clock,
+      });
+      const state = await runtime.run(makeTask(`wf-dangerous-${toolName}`));
 
-    // The tool is dangerous — workflow must be suspended, not failed with TOOL_NOT_FOUND etc.
-    expect(state.status).toBe("suspended");
-    expect(approvalStore.size).toBeGreaterThan(0);
-  });
+      // The tool is dangerous — workflow must be suspended, not failed with TOOL_NOT_FOUND etc.
+      expect(state.status).toBe("suspended");
+      expect(approvalStore.size).toBeGreaterThan(0);
+    },
+  );
 
   // -------------------------------------------------------------------------
   // Fake clock: approval at fake 24h works same as 24s

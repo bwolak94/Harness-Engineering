@@ -75,9 +75,7 @@ export class FakeModelPort implements ModelPort {
     tokens?: { promptTokens: number; completionTokens: number; totalTokens: number },
   ): Result<ModelResponse, ModelError>;
   static toolCallResponse(
-    toolCallsOrName:
-      | Array<{ id: string; name: string; args: Record<string, unknown> }>
-      | string,
+    toolCallsOrName: Array<{ id: string; name: string; args: Record<string, unknown> }> | string,
     argsOrTokens?:
       | Record<string, unknown>
       | { promptTokens: number; completionTokens: number; totalTokens: number },
@@ -89,13 +87,16 @@ export class FakeModelPort implements ModelPort {
     let tokens: { promptTokens: number; completionTokens: number; totalTokens: number };
 
     if (typeof toolCallsOrName === "string") {
-      toolCalls = [{ id: "c1", name: toolCallsOrName, args: (argsOrTokens as Record<string, unknown>) ?? {} }];
+      toolCalls = [
+        { id: "c1", name: toolCallsOrName, args: (argsOrTokens as Record<string, unknown>) ?? {} },
+      ];
       tokens = maybeTokens ?? defaultTokens;
     } else {
       toolCalls = toolCallsOrName;
       tokens =
-        (argsOrTokens as { promptTokens: number; completionTokens: number; totalTokens: number } | undefined) ??
-        defaultTokens;
+        (argsOrTokens as
+          | { promptTokens: number; completionTokens: number; totalTokens: number }
+          | undefined) ?? defaultTokens;
     }
 
     return ok({

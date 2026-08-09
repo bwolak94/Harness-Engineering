@@ -128,10 +128,10 @@ export function aboveClaimAmount(threshold: number): ToolPolicy {
   return policy((args) => {
     if (typeof args !== "object" || args === null) return "allow";
     const record = args as Record<string, unknown>;
-    const claim = record["claim"];
+    const claim = record.claim;
     if (typeof claim !== "object" || claim === null) return "allow";
     const claimRecord = claim as Record<string, unknown>;
-    const estimatedLoss = claimRecord["estimatedLoss"];
+    const estimatedLoss = claimRecord.estimatedLoss;
     if (typeof estimatedLoss !== "number") return "allow";
     return estimatedLoss > threshold ? "requireApproval" : "allow";
   });
