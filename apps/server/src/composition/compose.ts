@@ -10,6 +10,9 @@ import type { IdPort, ModelContext, ModelPort } from "@harness/core";
 import { WallClock, ok } from "@harness/core";
 import { createDefaultToolExecutors } from "@harness/core/tools";
 import Fastify, { type FastifyInstance } from "fastify";
+import { Pool } from "pg";
+import { registerAuthMiddleware } from "../http/auth-middleware.js";
+import { registerTenantRoutes } from "../http/tenant-routes.js";
 import { registerWorkflowRoutes } from "../http/workflow-routes.js";
 import { CompositeEventLog } from "../service/composite-event-log.js";
 import { EventBus } from "../service/event-bus.js";
@@ -91,7 +94,14 @@ export function compose(env: Env): App {
 
   // --- HTTP ---
   const fastify = Fastify({ logger: env.NODE_ENV !== "test" });
+  // Auth middleware runs before all routes; sets req.tenantContext from Bearer JWT.
+  registerAuthMiddleware(fastify, env.JWT_SECRET);
   registerWorkflowRoutes(fastify, service);
+  // Tenant management and tool-definition routes (T15).
+  // `new Pool` is lazy — it does not connect until the first query, so this is
+  // safe even when running tests with in-memory adapters.
+  const dbPool = new Pool({ connectionString: env.DATABASE_URL });
+  registerTenantRoutes(fastify, dbPool);
 
   // --- WS ---
   const gateway = new WsGateway(service, bus);

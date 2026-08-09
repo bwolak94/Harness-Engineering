@@ -31,6 +31,14 @@ const EnvSchema = z.object({
   // Human-in-the-loop
   APPROVAL_WEBHOOK_URL: z.string().url().optional(),
 
+  // Auth — HS256 symmetric key for JWT signing and verification.
+  // Must be at least 32 bytes of entropy; rotated via env var change + rolling deploy.
+  JWT_SECRET: z
+    .string()
+    .min(32, "JWT_SECRET must be at least 32 characters")
+    .optional()
+    .default("change-me-in-production-at-least-32-chars"),
+
   // Budget defaults
   DEFAULT_MAX_TOKENS: z.coerce.number().int().positive().default(100_000),
   DEFAULT_MAX_STEPS: z.coerce.number().int().positive().default(20),

@@ -30,6 +30,7 @@ export const SCHEMA_SQL = /* sql */ `
 CREATE TABLE IF NOT EXISTS workflows (
   id          TEXT        PRIMARY KEY,
   version     INTEGER     NOT NULL DEFAULT 0,
+  status      TEXT        NOT NULL DEFAULT 'running',
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
