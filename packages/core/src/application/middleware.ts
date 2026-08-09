@@ -144,6 +144,11 @@ export function withEventEmission(): HarnessMiddleware {
         },
       };
       await emitEvent(ctx, succeededEvent);
+    } else if (ctx.bag.suspendForApproval) {
+      // --- approval required: do NOT emit tool.failed ---
+      // The runtime will emit approval.requested + workflow.suspended instead.
+      // Leaving the tool.called event without a resolution makes it an in-flight
+      // call that resumeWithDecision can detect and re-execute after approval.
     } else {
       // --- tool.failed ---
       const failedEvent: ToolFailedEvent = {

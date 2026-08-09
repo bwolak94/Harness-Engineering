@@ -155,6 +155,21 @@ export function reduce(state: WorkflowState, event: HarnessEvent): WorkflowState
         status: event.payload.partial ? "completed_partial" : state.status,
       };
 
+    // approval.* events are HITL lifecycle events (T12).
+    // The actual status transitions are driven by workflow.suspended / workflow.resumed /
+    // workflow.failed. Approval events advance seq and carry the decision context.
+    case "approval.requested":
+      return { ...state, seq: event.seq };
+
+    case "approval.granted":
+      return { ...state, seq: event.seq };
+
+    case "approval.rejected":
+      return { ...state, seq: event.seq };
+
+    case "approval.timed_out":
+      return { ...state, seq: event.seq };
+
     default:
       return assertNever(event);
   }

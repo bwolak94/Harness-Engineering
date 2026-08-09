@@ -265,6 +265,54 @@ export const SupervisorSynthesizedEventSchema = BaseEventSchema.extend({
   }),
 });
 
+// ---------------------------------------------------------------------------
+// approval.requested / approval.granted / approval.rejected / approval.timed_out
+// Human-in-the-loop lifecycle events (T12)
+// ---------------------------------------------------------------------------
+
+export const ApprovalRequestedEventSchema = BaseEventSchema.extend({
+  type: z.literal("approval.requested"),
+  payload: z.object({
+    requestId: z.string().min(1),
+    toolName: z.string().min(1),
+    args: z.record(z.string(), z.unknown()),
+    reason: z.string().min(1),
+    expiresAt: z.string().datetime(),
+    stepId: z.string().min(1),
+    callId: z.string().min(1),
+  }),
+});
+
+export const ApprovalGrantedEventSchema = BaseEventSchema.extend({
+  type: z.literal("approval.granted"),
+  payload: z.object({
+    requestId: z.string().min(1),
+    decidedBy: z.string().min(1),
+    decidedAt: z.string().datetime(),
+    comment: z.string().optional(),
+  }),
+});
+
+export const ApprovalRejectedEventSchema = BaseEventSchema.extend({
+  type: z.literal("approval.rejected"),
+  payload: z.object({
+    requestId: z.string().min(1),
+    decidedBy: z.string().min(1),
+    decidedAt: z.string().datetime(),
+    reason: z.string().optional(),
+  }),
+});
+
+export const ApprovalTimedOutEventSchema = BaseEventSchema.extend({
+  type: z.literal("approval.timed_out"),
+  payload: z.object({
+    requestId: z.string().min(1),
+    /** The default action taken when no human responded before the deadline. */
+    defaultAction: z.enum(["approve", "reject"]),
+    expiresAt: z.string().datetime(),
+  }),
+});
+
 export const HarnessEventSchema = z.discriminatedUnion("type", [
   WorkflowStartedEventSchema,
   StepPlannedEventSchema,
@@ -283,6 +331,10 @@ export const HarnessEventSchema = z.discriminatedUnion("type", [
   SubagentCompletedEventSchema,
   SubagentFailedEventSchema,
   SupervisorSynthesizedEventSchema,
+  ApprovalRequestedEventSchema,
+  ApprovalGrantedEventSchema,
+  ApprovalRejectedEventSchema,
+  ApprovalTimedOutEventSchema,
 ]);
 
 export type HarnessEvent = z.infer<typeof HarnessEventSchema>;
@@ -303,3 +355,7 @@ export type SubagentStartedEvent = z.infer<typeof SubagentStartedEventSchema>;
 export type SubagentCompletedEvent = z.infer<typeof SubagentCompletedEventSchema>;
 export type SubagentFailedEvent = z.infer<typeof SubagentFailedEventSchema>;
 export type SupervisorSynthesizedEvent = z.infer<typeof SupervisorSynthesizedEventSchema>;
+export type ApprovalRequestedEvent = z.infer<typeof ApprovalRequestedEventSchema>;
+export type ApprovalGrantedEvent = z.infer<typeof ApprovalGrantedEventSchema>;
+export type ApprovalRejectedEvent = z.infer<typeof ApprovalRejectedEventSchema>;
+export type ApprovalTimedOutEvent = z.infer<typeof ApprovalTimedOutEventSchema>;

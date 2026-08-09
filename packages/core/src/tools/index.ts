@@ -3,12 +3,10 @@ import { getToolDefinition } from "@harness/contracts/tools";
 import { Supervisor } from "../application/supervisor.js";
 import {
   composeDecorators,
-  withPolicy,
   withResultTruncation,
   withTelemetry,
   withTimeout,
 } from "../application/tool-decorators.js";
-import { isDangerous } from "../application/tool-policy.js";
 import { asExecutor } from "../application/tool.js";
 import { tokenBudgetToChars } from "../application/truncation.js";
 import { NoopSandbox } from "../ports/sandbox.port.js";
@@ -16,6 +14,7 @@ import type { ToolExecutor } from "../ports/tool-registry.port.js";
 import { createAnalyzeInvestmentTool } from "./n1-analyze-investment.js";
 import { createOptimizeRouteTool } from "./n2-optimize-route.js";
 import { createCalculateLandedCostTool } from "./n3-calculate-landed-cost.js";
+import { createAssessClaimTool } from "./n5-assess-claim.js";
 import { createScreenCandidatesTool } from "./n6-screen-candidates.js";
 import { createSimulatePVPaybackTool } from "./n8-simulate-pv-payback.js";
 import { createCalculateNetSalaryTool } from "./n9-calculate-net-salary.js";
@@ -26,6 +25,7 @@ import { createRunCodeTool } from "./run-code.js";
 export { createAnalyzeInvestmentTool } from "./n1-analyze-investment.js";
 export { createOptimizeRouteTool } from "./n2-optimize-route.js";
 export { createCalculateLandedCostTool } from "./n3-calculate-landed-cost.js";
+export { createAssessClaimTool } from "./n5-assess-claim.js";
 export { createScreenCandidatesTool } from "./n6-screen-candidates.js";
 export type { ScreenCandidatesDeps } from "./n6-screen-candidates.js";
 export { createSimulatePVPaybackTool } from "./n8-simulate-pv-payback.js";
@@ -60,10 +60,15 @@ function requireDefinition(name: string): ToolDefinition {
 // Standard decorator stack
 //
 // Order (outermost → innermost):
-//   withPolicy(isDangerous) → withTimeout → withResultTruncation → withTelemetry
+//   withTimeout → withResultTruncation → withTelemetry
 //
-// withPolicy is outermost: no work is done for blocked tools.
-// withTelemetry is innermost: measures only real execution time, not policy/timeout overhead.
+// withPolicy (isDangerous / aboveClaimAmount / etc.) is intentionally absent here.
+// Approval-gate policy is evaluated by HarnessRuntime before calling the executor,
+// allowing resumeWithDecision() to bypass the check for approved tool calls without
+// needing to unwrap the decorator chain. This is the "continuation as data" approach
+// described in T12: the pending tool.called event IS the stored continuation.
+//
+// withTelemetry is innermost: measures only real execution time.
 // ---------------------------------------------------------------------------
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -71,7 +76,6 @@ const DEFAULT_TOKEN_BUDGET = 50_000; // ~200 KB
 const DEFAULT_MAX_CHARS = tokenBudgetToChars(DEFAULT_TOKEN_BUDGET);
 
 const standardDecorators = composeDecorators(
-  withPolicy(isDangerous()),
   withTimeout(DEFAULT_TIMEOUT_MS),
   withResultTruncation(DEFAULT_MAX_CHARS),
   withTelemetry(),
@@ -112,6 +116,7 @@ export function createDefaultToolExecutors(): ToolExecutor[] {
     decorate(asExecutor(createAnalyzeInvestmentTool(requireDefinition("analyzeInvestment")))),
     decorate(asExecutor(createOptimizeRouteTool(requireDefinition("optimizeRoute")))),
     decorate(asExecutor(createCalculateLandedCostTool(requireDefinition("calculateLandedCost")))),
+    decorate(asExecutor(createAssessClaimTool(requireDefinition("assessClaim")))),
     decorate(
       asExecutor(createScreenCandidatesTool(requireDefinition("screenCandidates"), { supervisor })),
     ),

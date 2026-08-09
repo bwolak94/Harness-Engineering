@@ -25,6 +25,10 @@
     "./data/*": {
       "import": "./dist/data/*.js",
       "types": "./dist/data/*.d.ts"
+    },
+    "./handoff": {
+      "import": "./dist/handoff.js",
+      "types": "./dist/handoff.d.ts"
     }
   },
   "scripts": {
