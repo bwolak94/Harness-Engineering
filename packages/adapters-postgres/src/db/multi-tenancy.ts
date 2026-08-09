@@ -353,10 +353,49 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO app_rw;
 `;
 
 /**
+ * SECRETS_SQL — DDL for the secrets table (0003_secrets.sql inline).
+ * Applied after MULTI_TENANCY_SQL in Testcontainers tests.
+ */
+export const SECRETS_SQL = /* sql */ `
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tenant_deks_tenant_version
+  ON tenant_deks (tenant_id, version);
+
+CREATE TABLE IF NOT EXISTS secrets (
+  id          TEXT    PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  tenant_id   TEXT    NOT NULL,
+  name        TEXT    NOT NULL,
+  ciphertext  TEXT    NOT NULL,
+  dek_version INTEGER NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (tenant_id, name),
+  CONSTRAINT fk_secret_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_secrets_tenant_name ON secrets (tenant_id, name);
+
+ALTER TABLE secrets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE secrets FORCE ROW LEVEL SECURITY;
+
+CREATE POLICY secrets_isolation ON secrets
+  USING (tenant_id = current_setting('app.tenant_id', TRUE));
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON secrets TO app_rw;
+`;
+
+/**
  * Applies the multi-tenancy schema additions to the given pool.
  * The pool must already have the base schema applied (applySchema).
  * Intended for Testcontainers-based tests and dev bootstrapping.
  */
 export async function applyMultiTenancy(pool: Pool): Promise<void> {
   await pool.query(MULTI_TENANCY_SQL);
+}
+
+/**
+ * Applies the secrets schema additions (0003_secrets.sql) to the given pool.
+ * Must be called after applyMultiTenancy().
+ */
+export async function applySecrets(pool: Pool): Promise<void> {
+  await pool.query(SECRETS_SQL);
 }
