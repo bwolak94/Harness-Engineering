@@ -13,3 +13,4 @@ export * from "./router.port.js";
 export * from "./agent-registry.port.js";
 export * from "./supervisor.port.js";
 export * from "./approval-store.port.js";
+export * from "./tenant.port.js";

@@ -9,6 +9,8 @@ export const workflowsTable = pgTable("workflows", {
   id: text("id").primaryKey(),
   /** Monotonically increasing version; incremented on every successful save(). */
   version: integer("version").notNull().default(0),
+  /** Workflow lifecycle status — kept in sync with the event log by the runtime. */
+  status: text("status").notNull().default("running"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
