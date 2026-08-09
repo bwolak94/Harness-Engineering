@@ -114,3 +114,25 @@ export function denyListed(names: readonly string[]): ToolPolicy {
   const set = new Set(names);
   return policy((_args, def) => (set.has(def.name) ? "deny" : "allow"));
 }
+
+/**
+ * Require approval when the insurance claim's estimatedLoss exceeds a threshold.
+ *
+ * "Próg jest konfiguracją, nie kodem" — the threshold is configuration,
+ * not a hardcoded if. Changing the approval limit is an operational decision,
+ * not a deploy. The tool itself (N5 assessClaim) remains pure and unaware of limits.
+ *
+ * @param threshold - Claim estimatedLoss amount above which approval is required.
+ */
+export function aboveClaimAmount(threshold: number): ToolPolicy {
+  return policy((args) => {
+    if (typeof args !== "object" || args === null) return "allow";
+    const record = args as Record<string, unknown>;
+    const claim = record["claim"];
+    if (typeof claim !== "object" || claim === null) return "allow";
+    const claimRecord = claim as Record<string, unknown>;
+    const estimatedLoss = claimRecord["estimatedLoss"];
+    if (typeof estimatedLoss !== "number") return "allow";
+    return estimatedLoss > threshold ? "requireApproval" : "allow";
+  });
+}

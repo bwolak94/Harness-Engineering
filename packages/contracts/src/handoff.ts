@@ -39,6 +39,8 @@ export const ApprovalRequestSchema = z.object({
   requestId: z.string().min(1),
   workflowId: z.string().min(1),
   stepId: z.string().min(1),
+  /** The callId from the tool.called event — used to match the in-flight call on resume. */
+  callId: z.string().min(1),
   resumeToken: z.string().min(1),
   toolName: z.string().min(1),
   args: z.record(z.string(), z.unknown()),

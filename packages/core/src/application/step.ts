@@ -54,6 +54,12 @@ export interface StepBag {
   emittedEvents: HarnessEvent[];
   /** Next seq number for events emitted inside this step. Incremented by withEventEmission. */
   nextSeq: number;
+  /**
+   * Set by executeTool when the executor returns APPROVAL_REQUIRED.
+   * Tells withEventEmission to skip emitting tool.failed — the runtime
+   * will instead emit approval.requested + workflow.suspended.
+   */
+  suspendForApproval: boolean;
 }
 
 /**
@@ -86,5 +92,6 @@ export function createStepBag(nextSeq: number): StepBag {
     budgetExceeded: null,
     emittedEvents: [],
     nextSeq,
+    suspendForApproval: false,
   };
 }

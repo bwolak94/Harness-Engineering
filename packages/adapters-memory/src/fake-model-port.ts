@@ -63,11 +63,41 @@ export class FakeModelPort implements ModelPort {
   // Factory helpers for common response shapes
   // ---------------------------------------------------------------------------
 
-  /** A response that requests one or more tool calls. */
+  /** A response that requests one or more tool calls (array form). */
   static toolCallResponse(
     toolCalls: Array<{ id: string; name: string; args: Record<string, unknown> }>,
-    tokens = { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
+    tokens?: { promptTokens: number; completionTokens: number; totalTokens: number },
+  ): Result<ModelResponse, ModelError>;
+  /** A response that requests a single tool call (name + args shorthand). */
+  static toolCallResponse(
+    name: string,
+    args: Record<string, unknown>,
+    tokens?: { promptTokens: number; completionTokens: number; totalTokens: number },
+  ): Result<ModelResponse, ModelError>;
+  static toolCallResponse(
+    toolCallsOrName:
+      | Array<{ id: string; name: string; args: Record<string, unknown> }>
+      | string,
+    argsOrTokens?:
+      | Record<string, unknown>
+      | { promptTokens: number; completionTokens: number; totalTokens: number },
+    maybeTokens?: { promptTokens: number; completionTokens: number; totalTokens: number },
   ): Result<ModelResponse, ModelError> {
+    const defaultTokens = { promptTokens: 100, completionTokens: 50, totalTokens: 150 };
+
+    let toolCalls: Array<{ id: string; name: string; args: Record<string, unknown> }>;
+    let tokens: { promptTokens: number; completionTokens: number; totalTokens: number };
+
+    if (typeof toolCallsOrName === "string") {
+      toolCalls = [{ id: "c1", name: toolCallsOrName, args: (argsOrTokens as Record<string, unknown>) ?? {} }];
+      tokens = maybeTokens ?? defaultTokens;
+    } else {
+      toolCalls = toolCallsOrName;
+      tokens =
+        (argsOrTokens as { promptTokens: number; completionTokens: number; totalTokens: number } | undefined) ??
+        defaultTokens;
+    }
+
     return ok({
       content: null,
       toolCalls,
@@ -96,6 +126,21 @@ export class FakeModelPort implements ModelPort {
     retryable = false,
   ): Result<ModelResponse, ModelError> {
     return err({ code, message, retryable });
+  }
+
+  /** Create a FakeModelPort from an explicit sequence of pre-built responses. */
+  static sequence(responses: Array<Result<ModelResponse, ModelError>>): FakeModelPort {
+    return new FakeModelPort(responses);
+  }
+
+  /** Create a FakeModelPort that returns a single tool call then has no more responses. */
+  static singleToolCall(name: string, args: Record<string, unknown>): FakeModelPort {
+    return new FakeModelPort([FakeModelPort.toolCallResponse(name, args)]);
+  }
+
+  /** Create a FakeModelPort that returns a single text response. */
+  static textOnly(content: string): FakeModelPort {
+    return new FakeModelPort([FakeModelPort.textResponse(content)]);
   }
 
   /** Create a FakeModelPort that loops forever with the same tool call (for budget tests). */
