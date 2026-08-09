@@ -8,8 +8,8 @@
  */
 
 import type { RateLimiterPort } from "@harness/core";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { TenantContext } from "@harness/core";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 export function registerRateLimitMiddleware(
   fastify: FastifyInstance,
@@ -31,13 +31,11 @@ export function registerRateLimitMiddleware(
     if (!result.allowed) {
       const retryAfterSec = Math.ceil(result.resetMs / 1000);
       reply.header("Retry-After", String(retryAfterSec));
-      reply
-        .status(429)
-        .send({
-          status: 429,
-          title: "Too Many Requests",
-          detail: `Rate limit of ${limitRpm} requests/minute exceeded. Retry after ${retryAfterSec}s.`,
-        });
+      reply.status(429).send({
+        status: 429,
+        title: "Too Many Requests",
+        detail: `Rate limit of ${limitRpm} requests/minute exceeded. Retry after ${retryAfterSec}s.`,
+      });
     }
   });
 }

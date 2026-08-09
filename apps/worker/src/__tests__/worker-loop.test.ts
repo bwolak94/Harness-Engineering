@@ -16,11 +16,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import {
-  InMemoryEventLog,
-  InMemoryJobQueue,
-  InMemoryStepLease,
-} from "@harness/adapters-memory";
+import { InMemoryEventLog, InMemoryJobQueue, InMemoryStepLease } from "@harness/adapters-memory";
 import type { TaskPacket } from "@harness/contracts";
 import type { HarnessRuntime } from "@harness/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -38,12 +34,14 @@ function makeTask(id = randomUUID()): TaskPacket {
   };
 }
 
-function makeOpts(overrides: Partial<{
-  workerId: string;
-  pollIntervalMs: number;
-  leaseDurationMs: number;
-  maxAttempts: number;
-}> = {}) {
+function makeOpts(
+  overrides: Partial<{
+    workerId: string;
+    pollIntervalMs: number;
+    leaseDurationMs: number;
+    maxAttempts: number;
+  }> = {},
+) {
   return {
     workerId: "test-worker",
     pollIntervalMs: 1,
@@ -158,7 +156,7 @@ describe("WorkerLoop", () => {
 
     // Simulate 2 prior attempts so the next failure hits maxAttempts=3.
     const jobs = queue.all();
-    jobs[0]!.attempts = 2;
+    if (jobs[0]) jobs[0].attempts = 2;
 
     const controller = new AbortController();
     abortAfterAck(queue, controller);

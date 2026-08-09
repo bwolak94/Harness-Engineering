@@ -62,10 +62,10 @@ export class PostgresStepLease implements LeasePort {
   }
 
   async release(workflowId: string, workerId: string): Promise<void> {
-    await this.pool.query(
-      "DELETE FROM step_leases WHERE workflow_id = $1 AND worker_id = $2",
-      [workflowId, workerId],
-    );
+    await this.pool.query("DELETE FROM step_leases WHERE workflow_id = $1 AND worker_id = $2", [
+      workflowId,
+      workerId,
+    ]);
   }
 
   async reapExpired(): Promise<number> {

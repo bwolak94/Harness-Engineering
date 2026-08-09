@@ -87,12 +87,13 @@ describe.skipIf(!dockerAvailable)("PostgresJobQueue (Testcontainers)", () => {
 
     const job = await queue.dequeue("worker-1");
     expect(job).not.toBeNull();
-    expect(job?.task.id).toBe(task.id);
-    expect(job?.tenantId).toBe(tenantId);
-    expect(job?.attempts).toBe(0);
+    if (!job) return;
+    expect(job.task.id).toBe(task.id);
+    expect(job.tenantId).toBe(tenantId);
+    expect(job.attempts).toBe(0);
 
     // Clean up
-    await queue.ack(job!.id);
+    await queue.ack(job.id);
   });
 
   it("enqueue is idempotent on workflow_id", async () => {
@@ -102,12 +103,13 @@ describe.skipIf(!dockerAvailable)("PostgresJobQueue (Testcontainers)", () => {
 
     const job = await queue.dequeue("worker-2");
     expect(job).not.toBeNull();
+    if (!job) return;
 
     // Only one row should exist — dequeue the only copy
     const second = await queue.dequeue("worker-3");
     expect(second).toBeNull(); // no duplicate
 
-    await queue.ack(job!.id);
+    await queue.ack(job.id);
   });
 
   it("dequeue returns null when queue is empty", async () => {
@@ -124,12 +126,14 @@ describe.skipIf(!dockerAvailable)("PostgresJobQueue (Testcontainers)", () => {
 
     const first = await queue.dequeue("worker-1");
     expect(first?.task.id).toBe(highTask.id);
+    if (!first) return;
 
     const second = await queue.dequeue("worker-2");
     expect(second?.task.id).toBe(lowTask.id);
+    if (!second) return;
 
-    await queue.ack(first!.id);
-    await queue.ack(second!.id);
+    await queue.ack(first.id);
+    await queue.ack(second.id);
   });
 
   it("dequeue skips jobs where run_after is in the future", async () => {
@@ -154,10 +158,11 @@ describe.skipIf(!dockerAvailable)("PostgresJobQueue (Testcontainers)", () => {
 
     const job = await queue.dequeue("worker-1");
     expect(job).not.toBeNull();
+    if (!job) return;
 
-    await queue.ack(job!.id);
+    await queue.ack(job.id);
 
-    const after = await pool.query("SELECT id FROM job_queue WHERE id = $1", [job!.id]);
+    const after = await pool.query("SELECT id FROM job_queue WHERE id = $1", [job.id]);
     expect(after.rows).toHaveLength(0);
   });
 
@@ -167,19 +172,20 @@ describe.skipIf(!dockerAvailable)("PostgresJobQueue (Testcontainers)", () => {
 
     const job = await queue.dequeue("worker-1");
     expect(job).not.toBeNull();
+    if (!job) return;
 
-    await queue.nack(job!.id, 5_000);
+    await queue.nack(job.id, 5_000);
 
     const row = await pool.query<{ attempts: number; run_after: Date; locked_by: string | null }>(
       "SELECT attempts, run_after, locked_by FROM job_queue WHERE id = $1",
-      [job!.id],
+      [job.id],
     );
     expect(row.rows[0]?.attempts).toBe(1);
     expect(row.rows[0]?.locked_by).toBeNull();
     expect(row.rows[0]?.run_after.getTime()).toBeGreaterThan(Date.now());
 
     // Clean up
-    await pool.query("DELETE FROM job_queue WHERE id = $1", [job!.id]);
+    await pool.query("DELETE FROM job_queue WHERE id = $1", [job.id]);
   });
 
   it("bulkhead: dequeue returns null when tenant is at max_concurrency", async () => {
@@ -197,14 +203,15 @@ describe.skipIf(!dockerAvailable)("PostgresJobQueue (Testcontainers)", () => {
     const jobB = await queue.dequeue("worker-B");
     expect(jobA).not.toBeNull();
     expect(jobB).not.toBeNull();
+    if (!jobA || !jobB) return;
 
     // Third dequeue must hit the bulkhead and return null
     const jobC = await queue.dequeue("worker-C");
     expect(jobC).toBeNull();
 
     // Clean up
-    await queue.ack(jobA!.id);
-    await queue.ack(jobB!.id);
+    await queue.ack(jobA.id);
+    await queue.ack(jobB.id);
     await pool.query("DELETE FROM job_queue WHERE workflow_id = $1", [taskC.id]);
   });
 });

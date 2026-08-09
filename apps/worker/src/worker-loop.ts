@@ -124,7 +124,9 @@ export class WorkerLoop {
 
       if (job.attempts + 1 >= this.opts.maxAttempts) {
         // Give up — ack to remove from queue (workflow is already in failed state).
-        console.error(`[worker] giving up on ${workflowId} after ${this.opts.maxAttempts} attempts`);
+        console.error(
+          `[worker] giving up on ${workflowId} after ${this.opts.maxAttempts} attempts`,
+        );
         await this.queue.ack(job.id);
       } else {
         const delay = backoffMs(job.attempts);

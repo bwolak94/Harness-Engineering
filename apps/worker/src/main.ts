@@ -9,19 +9,16 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { parseEnv } from "@harness/contracts/env";
+import { InMemoryEventLog, InMemoryToolRegistry } from "@harness/adapters-memory";
 import {
-  InMemoryEventLog,
-  InMemoryToolRegistry,
-} from "@harness/adapters-memory";
-import { HarnessRuntime, WallClock } from "@harness/core";
-import { createDefaultToolExecutors } from "@harness/core/tools";
-import {
-  applySchema,
-  applyMultiTenancy,
   PostgresJobQueue,
   PostgresStepLease,
+  applyMultiTenancy,
+  applySchema,
 } from "@harness/adapters-postgres";
+import { parseEnv } from "@harness/contracts/env";
+import { HarnessRuntime, WallClock } from "@harness/core";
+import { createDefaultToolExecutors } from "@harness/core/tools";
 import { Pool } from "pg";
 import { WorkerLoop } from "./worker-loop.js";
 

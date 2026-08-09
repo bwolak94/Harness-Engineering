@@ -12,8 +12,8 @@
  */
 
 import { execSync } from "node:child_process";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Redis } from "ioredis";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { RedisRateLimiter } from "../redis-rate-limiter.js";
 
 // ---------------------------------------------------------------------------

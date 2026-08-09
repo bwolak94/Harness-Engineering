@@ -135,9 +135,9 @@ describe.skipIf(!dockerAvailable)("PostgresStepLease (Testcontainers)", () => {
       [workflowId],
     );
 
-    expect(after.rows[0]!.lease_until.getTime()).toBeGreaterThan(
-      before.rows[0]!.lease_until.getTime(),
-    );
+    const beforeMs = before.rows[0]?.lease_until.getTime() ?? 0;
+    const afterMs = after.rows[0]?.lease_until.getTime() ?? 0;
+    expect(afterMs).toBeGreaterThan(beforeMs);
 
     await lease.release(workflowId, "worker-1");
   });
