@@ -313,6 +313,25 @@ export const ApprovalTimedOutEventSchema = BaseEventSchema.extend({
   }),
 });
 
+// ---------------------------------------------------------------------------
+// budget.threshold.exceeded — emitted when cost/token usage crosses an alert
+// threshold (T13). Informational — does NOT stop the workflow on its own.
+// ---------------------------------------------------------------------------
+
+export const BudgetThresholdExceededEventSchema = BaseEventSchema.extend({
+  type: z.literal("budget.threshold.exceeded"),
+  payload: z.object({
+    /** Which budget dimension triggered the alert. */
+    dimension: z.enum(["costUsd", "tokens", "steps"]),
+    /** Threshold fraction that was crossed, e.g. 0.8 for 80%. */
+    thresholdPct: z.number().min(0).max(1),
+    /** Current value of the dimension. */
+    current: z.number().nonnegative(),
+    /** Budget limit for the dimension. */
+    limit: z.number().positive(),
+  }),
+});
+
 export const HarnessEventSchema = z.discriminatedUnion("type", [
   WorkflowStartedEventSchema,
   StepPlannedEventSchema,
@@ -335,6 +354,7 @@ export const HarnessEventSchema = z.discriminatedUnion("type", [
   ApprovalGrantedEventSchema,
   ApprovalRejectedEventSchema,
   ApprovalTimedOutEventSchema,
+  BudgetThresholdExceededEventSchema,
 ]);
 
 export type HarnessEvent = z.infer<typeof HarnessEventSchema>;
@@ -359,3 +379,4 @@ export type ApprovalRequestedEvent = z.infer<typeof ApprovalRequestedEventSchema
 export type ApprovalGrantedEvent = z.infer<typeof ApprovalGrantedEventSchema>;
 export type ApprovalRejectedEvent = z.infer<typeof ApprovalRejectedEventSchema>;
 export type ApprovalTimedOutEvent = z.infer<typeof ApprovalTimedOutEventSchema>;
+export type BudgetThresholdExceededEvent = z.infer<typeof BudgetThresholdExceededEventSchema>;

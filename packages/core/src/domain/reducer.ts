@@ -170,6 +170,11 @@ export function reduce(state: WorkflowState, event: HarnessEvent): WorkflowState
     case "approval.timed_out":
       return { ...state, seq: event.seq };
 
+    // budget.threshold.exceeded is an observability alert event (T13).
+    // It is purely informational — the hard stop is handled by BudgetEnforcer.
+    case "budget.threshold.exceeded":
+      return { ...state, seq: event.seq };
+
     default:
       return assertNever(event);
   }
