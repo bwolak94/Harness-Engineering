@@ -13,3 +13,5 @@ export * from "./context-hydrator.js";
 export * from "./router.js";
 export * from "./routing-guard.js";
 export * from "./supervisor.js";
+export * from "./secret-redactor.js";
+export * from "./declarative-tool.js";

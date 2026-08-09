@@ -7,6 +7,7 @@
     { "path": "packages/adapters-postgres" },
     { "path": "packages/adapters-llm" },
     { "path": "packages/adapters-sandbox" },
+    { "path": "packages/adapters-egress" },
     { "path": "packages/observability" },
     { "path": "packages/evals" },
     { "path": "apps/server" },

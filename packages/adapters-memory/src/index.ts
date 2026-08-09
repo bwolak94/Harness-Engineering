@@ -10,3 +10,6 @@ export * from "./seeded-id-port.js";
 export * from "./fake-model-port.js";
 export * from "./in-memory-agent-registry.js";
 export * from "./in-memory-approval-store.js";
+export * from "./in-memory-kms.js";
+export * from "./in-memory-secret-store.js";
+export * from "./in-memory-blob-store.js";

@@ -14,3 +14,7 @@ export * from "./agent-registry.port.js";
 export * from "./supervisor.port.js";
 export * from "./approval-store.port.js";
 export * from "./tenant.port.js";
+export * from "./secret.port.js";
+export * from "./kms.port.js";
+export * from "./blob-store.port.js";
+export * from "./egress.port.js";
