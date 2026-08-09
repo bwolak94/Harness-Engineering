@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Socket } from "node:net";
 import {
   InMemoryEventLog,
+  InMemoryRateLimiter,
   InMemoryStateStore,
   InMemoryToolRegistry,
 } from "@harness/adapters-memory";
@@ -12,6 +13,7 @@ import { createDefaultToolExecutors } from "@harness/core/tools";
 import Fastify, { type FastifyInstance } from "fastify";
 import { Pool } from "pg";
 import { registerAuthMiddleware } from "../http/auth-middleware.js";
+import { registerRateLimitMiddleware } from "../http/rate-limit-middleware.js";
 import { registerTenantRoutes } from "../http/tenant-routes.js";
 import { registerWorkflowRoutes } from "../http/workflow-routes.js";
 import { CompositeEventLog } from "../service/composite-event-log.js";
@@ -92,10 +94,15 @@ export function compose(env: Env): App {
     idPort,
   });
 
+  // --- Rate limiter (in-memory; swap to RedisRateLimiter in production) ---
+  const rateLimiter = new InMemoryRateLimiter();
+
   // --- HTTP ---
   const fastify = Fastify({ logger: env.NODE_ENV !== "test" });
   // Auth middleware runs before all routes; sets req.tenantContext from Bearer JWT.
   registerAuthMiddleware(fastify, env.JWT_SECRET);
+  // Rate limit after auth so we have tenantContext available.
+  registerRateLimitMiddleware(fastify, rateLimiter, env.RATE_LIMIT_RPM);
   registerWorkflowRoutes(fastify, service);
   // Tenant management and tool-definition routes (T15).
   // `new Pool` is lazy — it does not connect until the first query, so this is

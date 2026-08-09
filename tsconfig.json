@@ -11,6 +11,8 @@
     { "path": "packages/observability" },
     { "path": "packages/evals" },
     { "path": "apps/server" },
-    { "path": "apps/web" }
+    { "path": "apps/web" },
+    { "path": "packages/adapters-redis" },
+    { "path": "apps/worker" }
   ]
 }

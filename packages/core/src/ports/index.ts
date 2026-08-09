@@ -18,3 +18,6 @@ export * from "./secret.port.js";
 export * from "./kms.port.js";
 export * from "./blob-store.port.js";
 export * from "./egress.port.js";
+export * from "./queue.port.js";
+export * from "./lease.port.js";
+export * from "./rate-limiter.port.js";
