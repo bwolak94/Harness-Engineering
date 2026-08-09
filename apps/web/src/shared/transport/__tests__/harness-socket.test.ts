@@ -93,9 +93,9 @@ describe("HarnessSocket", () => {
   it("sends subscribe message on open", () => {
     const socket = new HarnessSocket();
     socket.connect("wf-1", 0);
-    lastWs!.simulateOpen();
+    lastWs?.simulateOpen();
 
-    const msg = JSON.parse(lastWs!.sent[0] as string) as {
+    const msg = JSON.parse(lastWs?.sent[0] as string) as {
       type: string;
       workflowId: string;
       lastSeq: number;
@@ -112,10 +112,10 @@ describe("HarnessSocket", () => {
     const received: HarnessEvent[] = [];
     socket.onEvent((e) => received.push(e));
     socket.connect("wf-1", 0);
-    lastWs!.simulateOpen();
+    lastWs?.simulateOpen();
 
     const event = makeEvent(5);
-    lastWs!.simulateMessage({ type: "event", event });
+    lastWs?.simulateMessage({ type: "event", event });
 
     expect(received).toHaveLength(1);
     expect(received[0]).toEqual(event);
@@ -126,8 +126,8 @@ describe("HarnessSocket", () => {
   it("advances nextExpectedSeq after receiving an event", () => {
     const socket = new HarnessSocket();
     socket.connect("wf-1", 0);
-    lastWs!.simulateOpen();
-    lastWs!.simulateMessage({ type: "event", event: makeEvent(3) });
+    lastWs?.simulateOpen();
+    lastWs?.simulateMessage({ type: "event", event: makeEvent(3) });
 
     // Simulate disconnect and reconnect — should send lastSeq = 4
     const firstWs = lastWs!;
@@ -157,7 +157,7 @@ describe("HarnessSocket", () => {
     socket.connect("wf-1", 0);
 
     expect(statuses).toContain("connecting");
-    lastWs!.simulateOpen();
+    lastWs?.simulateOpen();
     expect(statuses).toContain("connected");
 
     socket.disconnect();
@@ -170,8 +170,8 @@ describe("HarnessSocket", () => {
       lagged = true;
     });
     socket.connect("wf-1", 0);
-    lastWs!.simulateOpen();
-    lastWs!.simulateMessage({ type: "stream.lagged", workflowId: "wf-1", lastSeq: 10 });
+    lastWs?.simulateOpen();
+    lastWs?.simulateMessage({ type: "stream.lagged", workflowId: "wf-1", lastSeq: 10 });
 
     expect(lagged).toBe(true);
 
@@ -186,7 +186,7 @@ describe("HarnessSocket", () => {
     vi.useFakeTimers();
     const wsMock = globalThis.WebSocket as unknown as { mock: { calls: unknown[] } };
     const wsCallCount = wsMock.mock.calls.length;
-    lastWs!.simulateClose();
+    lastWs?.simulateClose();
     vi.runAllTimers();
     expect(wsMock.mock.calls.length).toBe(wsCallCount);
     vi.useRealTimers();

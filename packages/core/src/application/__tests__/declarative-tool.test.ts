@@ -1,12 +1,9 @@
-import { z } from "zod";
-import { describe, expect, it, vi } from "vitest";
 import { NoopBlobStorePort, NoopEgressPort, NoopSecretPort } from "@harness/core";
-import {
-  createDeclarativeTool,
-  validateDeclarativeToolSpec,
-} from "../declarative-tool.js";
-import type { DeclarativeToolSpec } from "../declarative-tool.js";
+import { describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 import type { EgressRequest, EgressResponse } from "../../ports/egress.port.js";
+import { createDeclarativeTool, validateDeclarativeToolSpec } from "../declarative-tool.js";
+import type { DeclarativeToolSpec } from "../declarative-tool.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -128,9 +125,7 @@ describe("createDeclarativeTool", () => {
 
     await tool.execute({ query: "hello world" });
 
-    expect(egress.lastRequest?.url).toBe(
-      "https://api.example.com/data?q=hello world",
-    );
+    expect(egress.lastRequest?.url).toBe("https://api.example.com/data?q=hello world");
   });
 
   it("applies responseMapping to extract nested field", async () => {
@@ -149,12 +144,13 @@ describe("createDeclarativeTool", () => {
     const egress = makeMockEgress();
     // Omit responseMapping entirely (exactOptionalPropertyTypes forbids spreading undefined)
     const { responseMapping: _rm, ...specNoMapping } = baseSpec;
-    const tool = createDeclarativeTool(
-      specNoMapping,
-      { egress, secrets: new NoopSecretPort(), blobStore: new NoopBlobStorePort() },
-    );
+    const tool = createDeclarativeTool(specNoMapping, {
+      egress,
+      secrets: new NoopSecretPort(),
+      blobStore: new NoopBlobStorePort(),
+    });
 
-    const result = await tool.execute({ query: "test" }) as Record<string, unknown>;
+    const result = (await tool.execute({ query: "test" })) as Record<string, unknown>;
     expect(result).toHaveProperty("items");
     expect(result).toHaveProperty("meta");
   });
@@ -183,7 +179,12 @@ describe("createDeclarativeTool", () => {
   });
 
   it("forwards claim check reference when egress returns one", async () => {
-    const claimCheck = { bucket: "claim-checks", key: "t1/123", sizeBytes: 300_000, contentType: "text/plain" };
+    const claimCheck = {
+      bucket: "claim-checks",
+      key: "t1/123",
+      sizeBytes: 300_000,
+      contentType: "text/plain",
+    };
     const egress = makeMockEgress({
       body: "preview...",
       claimCheck,
@@ -195,7 +196,10 @@ describe("createDeclarativeTool", () => {
       blobStore: new NoopBlobStorePort(),
     });
 
-    const result = await tool.execute({ query: "big" }) as { claimCheck: unknown; preview: string };
+    const result = (await tool.execute({ query: "big" })) as {
+      claimCheck: unknown;
+      preview: string;
+    };
     expect(result.claimCheck).toEqual(claimCheck);
     expect(result.preview).toBe("preview...");
   });

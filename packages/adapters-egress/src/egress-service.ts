@@ -50,7 +50,7 @@ async function substituteSecrets(
   let result = text;
   // Resolve each unique name once
   const cache = new Map<string, string>();
-  for (const [placeholder, name] of matches) {
+  for (const [_placeholder, name] of matches) {
     if (!name || cache.has(name)) continue;
     const value = await secrets.resolve(tenantId, name);
     if (value === null) {
@@ -260,7 +260,9 @@ export class EgressService implements EgressPort {
         });
 
         res.on("end", () => {
-          const bodyBuffer = Buffer.concat(chunks);
+          // Buffer<ArrayBufferLike>[] is not assignable to Uint8Array[] in @types/node 26
+          // due to a slice().buffer return-type divergence; safe cast at runtime.
+          const bodyBuffer = Buffer.concat(chunks as unknown as Uint8Array[]);
           const responseHeaders: Record<string, string> = {};
           for (const [k, v] of Object.entries(res.headers)) {
             if (typeof v === "string") responseHeaders[k] = v;

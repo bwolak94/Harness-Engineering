@@ -30,7 +30,10 @@ describe("redactSecrets", () => {
   });
 
   it("redacts Bearer tokens in Authorization headers", () => {
-    const result = redactSecrets('{"Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.payload.sig"}', []);
+    const result = redactSecrets(
+      '{"Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.payload.sig"}',
+      [],
+    );
     expect(result).toContain("[REDACTED]");
     expect(result).not.toContain("eyJhbGciOiJIUzI1NiJ9");
   });

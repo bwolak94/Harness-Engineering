@@ -34,7 +34,7 @@ beforeAll(
         const chunks: Buffer[] = [];
         req.on("data", (c: Buffer) => chunks.push(c));
         req.on("end", () => {
-          const body = Buffer.concat(chunks).toString("utf8");
+          const body = Buffer.concat(chunks as unknown as Uint8Array[]).toString("utf8");
           if (req.url === "/echo") {
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ method: req.method, body, headers: req.headers }));

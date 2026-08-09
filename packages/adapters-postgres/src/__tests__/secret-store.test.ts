@@ -13,9 +13,9 @@
  */
 
 import { execSync } from "node:child_process";
+import { InMemoryKms } from "@harness/adapters-memory";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { InMemoryKms } from "@harness/adapters-memory";
 import { applySchema } from "../db/client.js";
 import { applyMultiTenancy, applySecrets } from "../db/multi-tenancy.js";
 import { PostgresSecretStore } from "../postgres-secret-store.js";
@@ -130,8 +130,8 @@ describe.skipIf(!dockerAvailable)("PostgresSecretStore (Testcontainers)", () => 
       [TENANT_A, "SECURITY_CHECK"],
     );
     expect(result.rows).toHaveLength(1);
-    expect(result.rows[0]!.ciphertext).not.toContain(plaintext);
-    expect(result.rows[0]!.ciphertext).not.toBe(plaintext);
+    expect(result.rows[0]?.ciphertext).not.toContain(plaintext);
+    expect(result.rows[0]?.ciphertext).not.toBe(plaintext);
   });
 
   // -------------------------------------------------------------------------
