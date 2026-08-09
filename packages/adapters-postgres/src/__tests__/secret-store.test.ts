@@ -15,7 +15,7 @@
 import { execSync } from "node:child_process";
 import { InMemoryKms } from "@harness/adapters-memory";
 import { Pool } from "pg";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { applySchema } from "../db/client.js";
 import { applyMultiTenancy, applySecrets } from "../db/multi-tenancy.js";
 import { PostgresSecretStore } from "../postgres-secret-store.js";
@@ -68,15 +68,17 @@ describe.skipIf(!dockerAvailable)("PostgresSecretStore (Testcontainers)", () => 
       "INSERT INTO tenants (id, slug, plan, region) VALUES ($1, $2, 'free', 'eu-west') ON CONFLICT DO NOTHING",
       [TENANT_B, "beta"],
     );
+
+    // KMS and store are created once per suite so the same master key can
+    // unwrap DEKs that persist in tenant_deks across all tests in this suite.
+    // A new InMemoryKms per-test would fail to decrypt DEKs created by a
+    // previous test's KMS instance (different random master key).
+    kms = new InMemoryKms();
+    store = new PostgresSecretStore(pool, kms);
   });
 
   afterAll(async () => {
     await pool?.end();
-  });
-
-  beforeEach(() => {
-    kms = new InMemoryKms();
-    store = new PostgresSecretStore(pool, kms);
   });
 
   // -------------------------------------------------------------------------
