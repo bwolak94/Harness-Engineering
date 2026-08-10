@@ -101,9 +101,21 @@ describe("backtestRules", () => {
     // on any random walk, so both symbols accumulate many trades
     const longRange = { from: "2010-01-01", to: "2023-12-31" };
     const entry = { indicator: "RSI", params: { period: 5 }, op: "crossAbove" as const, value: 50 };
-    const exit  = { indicator: "RSI", params: { period: 5 }, op: "crossBelow" as const, value: 50 };
-    const outA = await tool.execute({ ...BASE_INPUT, symbol: "AAPL", range: longRange, entry, exit });
-    const outB = await tool.execute({ ...BASE_INPUT, symbol: "TSLA", range: longRange, entry, exit });
+    const exit = { indicator: "RSI", params: { period: 5 }, op: "crossBelow" as const, value: 50 };
+    const outA = await tool.execute({
+      ...BASE_INPUT,
+      symbol: "AAPL",
+      range: longRange,
+      entry,
+      exit,
+    });
+    const outB = await tool.execute({
+      ...BASE_INPUT,
+      symbol: "TSLA",
+      range: longRange,
+      entry,
+      exit,
+    });
     // Both will have many trades; the different price paths produce different PnL sums
     expect(outA.stats.trades).toBeGreaterThan(0);
     expect(outB.stats.trades).toBeGreaterThan(0);
@@ -157,11 +169,31 @@ describe("backtestRules", () => {
   it("NOT rule produces fewer trades than the base rule over a long range", async () => {
     const longRange = { from: "2010-01-01", to: "2023-12-31" };
     // RSI > 0 is almost always true → many entry signals
-    const baseEntry = { indicator: "RSI", params: { period: 5 }, op: "greaterThan" as const, value: 0 };
-    const baseExit  = { indicator: "RSI", params: { period: 5 }, op: "lessThan"    as const, value: 100 };
-    const outNormal   = await tool.execute({ ...BASE_INPUT, range: longRange, entry: baseEntry, exit: baseExit });
+    const baseEntry = {
+      indicator: "RSI",
+      params: { period: 5 },
+      op: "greaterThan" as const,
+      value: 0,
+    };
+    const baseExit = {
+      indicator: "RSI",
+      params: { period: 5 },
+      op: "lessThan" as const,
+      value: 100,
+    };
+    const outNormal = await tool.execute({
+      ...BASE_INPUT,
+      range: longRange,
+      entry: baseEntry,
+      exit: baseExit,
+    });
     // NOT(RSI > 0) = RSI <= 0 — almost never true (RSI approaches 0 only when all moves are down)
-    const outInverted = await tool.execute({ ...BASE_INPUT, range: longRange, entry: { not: baseEntry }, exit: baseExit });
+    const outInverted = await tool.execute({
+      ...BASE_INPUT,
+      range: longRange,
+      entry: { not: baseEntry },
+      exit: baseExit,
+    });
     // The normal entry fires far more often than the inverted one
     expect(outNormal.stats.trades).toBeGreaterThan(outInverted.stats.trades);
   });
