@@ -9,3 +9,5 @@ export { PostgresTenantStore } from "./tenant-store.js";
 export { PostgresSecretStore } from "./postgres-secret-store.js";
 export { PostgresJobQueue } from "./postgres-job-queue.js";
 export { PostgresStepLease } from "./postgres-step-lease.js";
+export { PostgresUsageLedger } from "./postgres-usage-ledger.js";
+export { UsageRollupJob } from "./usage-rollup.js";

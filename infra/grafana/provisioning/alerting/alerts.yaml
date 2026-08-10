@@ -1,0 +1,153 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: harness-alerts
+    folder: Harness
+    interval: 1m
+    rules:
+      # Alert 1: Queue growing monotonically — no workers draining jobs.
+      - uid: queue-growing
+        title: Queue depth growing monotonically
+        condition: C
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: increase(harness_queue_depth[5m])
+              instant: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "__expr__"
+            model:
+              conditions:
+                - evaluator:
+                    params: [0]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                  type: query
+              type: classic_conditions
+              refId: C
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: Job queue is growing — workers may be down
+          description: harness.queue.depth has increased monotonically for the past 5 minutes.
+
+      # Alert 2: Error rate above 10%.
+      - uid: high-error-rate
+        title: Workflow error rate > 10%
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            model:
+              expr: |
+                rate(harness_workflow_duration_ms_count{harness_workflow_status="failed"}[5m])
+                /
+                rate(harness_workflow_duration_ms_count[5m])
+              refId: A
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              conditions:
+                - evaluator:
+                    params: [0.1]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                  type: query
+              type: classic_conditions
+              refId: C
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: High workflow error rate
+          description: More than 10% of workflows are failing.
+
+      # Alert 3: Workflow without heartbeat (stalled).
+      - uid: stalled-workflow
+        title: Workflow without heartbeat
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            model:
+              expr: harness_queue_active_leases > 0
+              refId: A
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              conditions:
+                - evaluator:
+                    params: [0]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                  type: query
+              type: classic_conditions
+              refId: C
+        noDataState: NoData
+        execErrState: Error
+        for: 10m
+        annotations:
+          summary: Active leases detected without queue draining
+          description: Workflows hold leases but queue depth is not decreasing — possible stall.
+
+      # Alert 4: Daily cost limit approaching (per plan aggregate).
+      - uid: cost-limit
+        title: Daily cost approaching plan limit
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            model:
+              expr: sum(harness_workflow_cost_usd_sum) by (harness_workflow_status)
+              refId: A
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              conditions:
+                - evaluator:
+                    params: [100]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                  type: query
+              type: classic_conditions
+              refId: C
+        noDataState: NoData
+        execErrState: Error
+        for: 1m
+        annotations:
+          summary: Daily workflow cost above $100
+          description: Aggregate workflow cost_usd has exceeded the $100/day threshold.

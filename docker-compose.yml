@@ -29,6 +29,10 @@ services:
       timeout: 5s
       retries: 10
 
+  # ---------------------------------------------------------------------------
+  # Observability stack: OTel Collector → Tempo / Prometheus / Loki → Grafana
+  # ---------------------------------------------------------------------------
+
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.114.0
     container_name: harness-otel
@@ -37,22 +41,102 @@ services:
     volumes:
       - ./infra/otel-collector.yaml:/etc/otel/config.yaml:ro
     ports:
-      - "4317:4317"  # gRPC
-      - "4318:4318"  # HTTP
-      - "8888:8888"  # metrics
+      - "4317:4317"   # OTLP gRPC (app → collector)
+      - "4318:4318"   # OTLP HTTP (app → collector)
+      - "8888:8888"   # Collector self-metrics
+      - "9464:9464"   # Prometheus scrape endpoint (collector → prometheus)
     depends_on:
-      - jaeger
+      - tempo
+      - loki
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:13133/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  jaeger:
-    image: jaegertracing/all-in-one:1.62
-    container_name: harness-jaeger
+  tempo:
+    image: grafana/tempo:2.6.1
+    container_name: harness-tempo
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo/config.yaml"]
+    volumes:
+      - ./infra/tempo.yaml:/etc/tempo/config.yaml:ro
+      - tempo_data:/tmp/tempo
+    ports:
+      - "3200:3200"   # Tempo HTTP API (Grafana datasource)
+      - "4317"        # OTLP gRPC (internal, collector → tempo)
+      - "4318"        # OTLP HTTP (internal, collector → tempo)
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3200/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  loki:
+    image: grafana/loki:3.2.0
+    container_name: harness-loki
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/config.yaml"]
+    volumes:
+      - ./infra/loki.yaml:/etc/loki/config.yaml:ro
+      - loki_data:/loki
+    ports:
+      - "3100:3100"   # Loki HTTP API (Grafana datasource)
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: harness-prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-remote-write-receiver"
+    volumes:
+      - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"   # Prometheus UI + API (Grafana datasource)
+    depends_on:
+      - otel-collector
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: harness-grafana
     restart: unless-stopped
     environment:
-      COLLECTOR_OTLP_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_FEATURE_TOGGLES_ENABLE: traceqlEditor
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
     ports:
-      - "16686:16686"  # UI
-      - "14317:4317"   # gRPC (internal)
-      - "14318:4318"   # HTTP (internal)
+      - "3000:3000"   # Grafana UI
+    depends_on:
+      - prometheus
+      - tempo
+      - loki
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
 volumes:
   postgres_data:
+  tempo_data:
+  loki_data:
+  prometheus_data:
+  grafana_data:

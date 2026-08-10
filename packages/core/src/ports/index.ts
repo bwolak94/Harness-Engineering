@@ -21,3 +21,4 @@ export * from "./egress.port.js";
 export * from "./queue.port.js";
 export * from "./lease.port.js";
 export * from "./rate-limiter.port.js";
+export * from "./usage-ledger.port.js";
