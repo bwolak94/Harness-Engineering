@@ -13,6 +13,8 @@ import { createDefaultToolExecutors } from "@harness/core/tools";
 import Fastify, { type FastifyInstance } from "fastify";
 import { Pool } from "pg";
 import { registerAuthMiddleware } from "../http/auth-middleware.js";
+import { registerBillingRoutes } from "../http/billing-routes.js";
+import { registerLifecycleRoutes } from "../http/lifecycle-routes.js";
 import { registerObservabilityRoutes } from "../http/observability-routes.js";
 import { registerRateLimitMiddleware } from "../http/rate-limit-middleware.js";
 import { registerTenantRoutes } from "../http/tenant-routes.js";
@@ -111,6 +113,8 @@ export function compose(env: Env): App {
   const dbPool = new Pool({ connectionString: env.DATABASE_URL });
   registerTenantRoutes(fastify, dbPool);
   registerObservabilityRoutes(fastify, dbPool);
+  registerBillingRoutes(fastify, dbPool);
+  registerLifecycleRoutes(fastify, dbPool);
 
   // --- WS ---
   const gateway = new WsGateway(service, bus);

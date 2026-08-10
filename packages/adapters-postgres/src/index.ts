@@ -11,3 +11,7 @@ export { PostgresJobQueue } from "./postgres-job-queue.js";
 export { PostgresStepLease } from "./postgres-step-lease.js";
 export { PostgresUsageLedger } from "./postgres-usage-ledger.js";
 export { UsageRollupJob } from "./usage-rollup.js";
+export { PostgresBillingAdapter } from "./postgres-billing.js";
+export { RetentionJob } from "./retention-job.js";
+export { DeletionService } from "./deletion-service.js";
+export type { DeletionResult } from "./deletion-service.js";
