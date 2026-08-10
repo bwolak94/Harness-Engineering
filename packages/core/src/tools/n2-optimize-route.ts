@@ -152,10 +152,14 @@ function nearestNeighbour(stopIndices: number[], dist: number[][]): number[] {
  * Positive gain = improvement.
  */
 function twoOptGain(route: number[], i: number, j: number, dist: number[][]): number {
-  const a = route[i] !== undefined ? route[i]! + 1 : 0; // dist-matrix index
-  const b = route[i + 1] !== undefined ? route[i + 1]! + 1 : 0;
-  const c = route[j] !== undefined ? route[j]! + 1 : 0;
-  const d = j + 1 < route.length && route[j + 1] !== undefined ? route[j + 1]! + 1 : 0;
+  const ri = route[i];
+  const ri1 = route[i + 1];
+  const rj = route[j];
+  const rj1 = route[j + 1];
+  const a = ri !== undefined ? ri + 1 : 0; // dist-matrix index
+  const b = ri1 !== undefined ? ri1 + 1 : 0;
+  const c = rj !== undefined ? rj + 1 : 0;
+  const d = j + 1 < route.length && rj1 !== undefined ? rj1 + 1 : 0;
 
   const before = (dist[a]?.[b] ?? 0) + (dist[c]?.[d] ?? 0);
   const after = (dist[a]?.[c] ?? 0) + (dist[b]?.[d] ?? 0);
