@@ -1,0 +1,10 @@
+[
+  "workflow.started",
+  "context.hydrated",
+  "step.planned",
+  "tool.called",
+  "tool.succeeded",
+  "state.checkpointed",
+  "context.hydrated",
+  "workflow.completed"
+]

@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { ALL_CASES } from "../golden/index.js";
 import { N1_CASES } from "../golden/n1.js";
 import { N3_CASES } from "../golden/n3.js";
+import { N4_CASES } from "../golden/n4.js";
+import { N6_CASES } from "../golden/n6.js";
+import { N7_CASES } from "../golden/n7.js";
 import { N9_CASES } from "../golden/n9.js";
 import { REGRESSION_CASES } from "../golden/regression.js";
 import { EvalRunner } from "../runner.js";
@@ -100,6 +103,66 @@ describe("outcome assertions — N3 calculateLandedCost", () => {
 
   it("EU standard import: VAT > 0, appliedRules non-empty", async () => {
     const c = N3_CASES.find((x) => x.id === "n3-eu-standard-import");
+    expect(c).toBeDefined();
+    // biome-ignore lint/style/noNonNullAssertion: asserted above
+    const result = await runner.run(c!);
+    expect(result.outcomeFailures).toHaveLength(0);
+  });
+});
+
+describe("outcome assertions — N4 backtestRules", () => {
+  const runner = new EvalRunner();
+
+  it("SMA cross: all output fields present, 12 monthly buckets", async () => {
+    const c = N4_CASES.find((x) => x.id === "n4-sma-cross-basic");
+    expect(c).toBeDefined();
+    // biome-ignore lint/style/noNonNullAssertion: asserted above
+    const result = await runner.run(c!);
+    expect(result.outcomeFailures).toHaveLength(0);
+  });
+
+  it("RSI cross long range: trades > 0, sampleTrades <= 5", async () => {
+    const c = N4_CASES.find((x) => x.id === "n4-rsi-cross-long-range");
+    expect(c).toBeDefined();
+    // biome-ignore lint/style/noNonNullAssertion: asserted above
+    const result = await runner.run(c!);
+    expect(result.outcomeFailures).toHaveLength(0);
+  });
+});
+
+describe("outcome assertions — N6 screenCandidates", () => {
+  const runner = new EvalRunner();
+
+  it("two candidates: both scored, rankingRationale present", async () => {
+    const c = N6_CASES.find((x) => x.id === "n6-two-candidates-ranking");
+    expect(c).toBeDefined();
+    // biome-ignore lint/style/noNonNullAssertion: asserted above
+    const result = await runner.run(c!);
+    expect(result.outcomeFailures).toHaveLength(0);
+  });
+
+  it("custom weights: rubricBreakdown on every scored candidate", async () => {
+    const c = N6_CASES.find((x) => x.id === "n6-custom-weights");
+    expect(c).toBeDefined();
+    // biome-ignore lint/style/noNonNullAssertion: asserted above
+    const result = await runner.run(c!);
+    expect(result.outcomeFailures).toHaveLength(0);
+  });
+});
+
+describe("outcome assertions — N7 explodeRecipeCost", () => {
+  const runner = new EvalRunner();
+
+  it("pizza margherita: totalCost > 0, purchaseList has leaf ingredients", async () => {
+    const c = N7_CASES.find((x) => x.id === "n7-pizza-margherita-no-stock");
+    expect(c).toBeDefined();
+    // biome-ignore lint/style/noNonNullAssertion: asserted above
+    const result = await runner.run(c!);
+    expect(result.outcomeFailures).toHaveLength(0);
+  });
+
+  it("tiramisu: nested espresso resolved, ground-coffee in purchaseList", async () => {
+    const c = N7_CASES.find((x) => x.id === "n7-tiramisu-nested-espresso");
     expect(c).toBeDefined();
     // biome-ignore lint/style/noNonNullAssertion: asserted above
     const result = await runner.run(c!);
