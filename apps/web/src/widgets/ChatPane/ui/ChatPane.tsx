@@ -8,6 +8,7 @@ import { SubmitForm } from "../../../features/submit-task/index.js";
 import { cn } from "../../../shared/lib/cn.js";
 import { Badge } from "../../../shared/ui/badge.js";
 import { ApprovalPanel } from "../../ApprovalPanel/index.js";
+import { BudgetGauge, extractBudgetLimits } from "../../BudgetGauge/ui/BudgetGauge.js";
 
 // ---------------------------------------------------------------------------
 // Transcript model — converts raw HarnessEvents into chat turns
@@ -216,6 +217,7 @@ interface ChatPaneProps {
   state: WorkflowState | null;
   events: HarnessEvent[];
   onWorkflowStarted: (workflowId: string) => void;
+  onClearHistory: () => void;
   className?: string;
 }
 
@@ -234,7 +236,13 @@ function StatusBadge({ status }: { status: WorkflowState["status"] }) {
   return <Badge variant={map[status]}>{status}</Badge>;
 }
 
-export function ChatPane({ state, events, onWorkflowStarted, className }: ChatPaneProps) {
+export function ChatPane({
+  state,
+  events,
+  onWorkflowStarted,
+  onClearHistory,
+  className,
+}: ChatPaneProps) {
   const transcript = toTranscript(events);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -255,18 +263,30 @@ export function ChatPane({ state, events, onWorkflowStarted, className }: ChatPa
           <h1 className="text-sm font-semibold text-white tracking-tight">Harness Inspector</h1>
           <p className="text-xs text-[#52525b] mt-0.5">AI agent execution trace</p>
         </div>
-        {state && <StatusBadge status={state.status} />}
+        <div className="flex items-center gap-2">
+          {state && <StatusBadge status={state.status} />}
+          {events.length > 0 && (
+            <button
+              type="button"
+              onClick={onClearHistory}
+              className="text-[10px] font-mono text-[#3f3f46] hover:text-[#a1a1aa] transition-colors"
+              title="Clear conversation history"
+            >
+              clear
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Workflow ID + budget — compact strip */}
+      {/* Workflow ID strip */}
       {state && (
         <div className="border-b border-border px-4 py-1.5 shrink-0 flex items-center gap-3 text-xs text-[#52525b]">
-          <span className="font-mono truncate max-w-[140px]">{state.workflowId.slice(0, 8)}…</span>
-          <span>{state.budget.stepsCompleted ?? 0} steps</span>
-          <span>{(state.budget.tokensUsed ?? 0).toLocaleString()} tok</span>
-          <span>${(state.budget.costUsd ?? 0).toFixed(4)}</span>
+          <span className="font-mono truncate max-w-[160px]">{state.workflowId.slice(0, 8)}…</span>
         </div>
       )}
+
+      {/* Live budget gauge — four progress bars, updates on each state.checkpointed event */}
+      {state && <BudgetGauge state={state} limits={extractBudgetLimits(events)} />}
 
       {/* Chat transcript */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">

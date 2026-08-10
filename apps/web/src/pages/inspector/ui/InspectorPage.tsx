@@ -7,7 +7,7 @@ import { EventStreamPane } from "../../../widgets/EventStreamPane/index.js";
 // ---------------------------------------------------------------------------
 
 export function InspectorPage() {
-  const { state, events, allEvents, status, lagged, subscribe } = useWorkflowStore();
+  const { state, events, allEvents, status, lagged, subscribe, reset } = useWorkflowStore();
 
   const handleWorkflowStarted = (workflowId: string) => {
     subscribe(workflowId);
@@ -20,6 +20,7 @@ export function InspectorPage() {
         state={state}
         events={allEvents}
         onWorkflowStarted={handleWorkflowStarted}
+        onClearHistory={reset}
         className="w-[40%] min-w-[280px]"
       />
 

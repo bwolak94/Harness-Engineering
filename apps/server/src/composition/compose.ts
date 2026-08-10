@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Socket } from "node:net";
+import { EgressService } from "@harness/adapters-egress";
 import { VercelAiModelPort } from "@harness/adapters-llm";
 import { InMemoryRateLimiter, InMemoryToolRegistry } from "@harness/adapters-memory";
 import {
@@ -11,7 +12,7 @@ import {
 } from "@harness/adapters-postgres";
 import type { Env } from "@harness/contracts/env";
 import type { IdPort } from "@harness/core";
-import { WallClock } from "@harness/core";
+import { NoopBlobStorePort, NoopSecretPort, WallClock } from "@harness/core";
 import { createDefaultToolExecutors } from "@harness/core/tools";
 import {
   TracingModelAdapter,
@@ -24,6 +25,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { registerAuthMiddleware } from "../http/auth-middleware.js";
 import { registerBillingRoutes } from "../http/billing-routes.js";
 import { registerLifecycleRoutes } from "../http/lifecycle-routes.js";
+import { registerMcpRoutes } from "../http/mcp-routes.js";
 import { registerObservabilityRoutes } from "../http/observability-routes.js";
 import { registerRateLimitMiddleware } from "../http/rate-limit-middleware.js";
 import { registerTenantRoutes } from "../http/tenant-routes.js";
@@ -71,6 +73,11 @@ export function compose(env: Env): App {
   // Wrap the model port to emit gen_ai.chat spans and token/cost metrics.
   const model = new TracingModelAdapter(rawModel, tracer, harnessMetrics);
 
+  // --- Egress — SSRF-safe HTTP client used by MCP tool calls ---
+  // NoopSecretPort: secrets are resolved lazily per-tenant at call time (T16).
+  // NoopBlobStorePort: large response claim-checks are a production concern.
+  const egress = new EgressService(new NoopSecretPort(), new NoopBlobStorePort());
+
   // --- Storage — durable Postgres adapters backed by the shared pool ---
   const { db, pool: dbPool } = createDb(env.DATABASE_URL);
   const rawEventLog = new PostgresEventLog(db);
@@ -116,6 +123,7 @@ export function compose(env: Env): App {
   // Rate limit after auth so we have tenantContext available.
   registerRateLimitMiddleware(fastify, rateLimiter, env.RATE_LIMIT_RPM);
   registerWorkflowRoutes(fastify, service);
+  registerMcpRoutes(fastify, egress, toolRegistry);
   // Tenant management, observability, billing, and lifecycle routes share the pool.
   registerTenantRoutes(fastify, dbPool);
   registerObservabilityRoutes(fastify, dbPool);
