@@ -1,14 +1,16 @@
 import { randomUUID } from "node:crypto";
 import type { Socket } from "node:net";
+import { VercelAiModelPort } from "@harness/adapters-llm";
 import {
   InMemoryEventLog,
   InMemoryRateLimiter,
   InMemoryStateStore,
   InMemoryToolRegistry,
 } from "@harness/adapters-memory";
+import { RetentionJob, UsageRollupJob } from "@harness/adapters-postgres";
 import type { Env } from "@harness/contracts/env";
-import type { IdPort, ModelContext, ModelPort } from "@harness/core";
-import { WallClock, ok } from "@harness/core";
+import type { IdPort } from "@harness/core";
+import { WallClock } from "@harness/core";
 import { createDefaultToolExecutors } from "@harness/core/tools";
 import Fastify, { type FastifyInstance } from "fastify";
 import { Pool } from "pg";
@@ -35,23 +37,6 @@ class CryptoIdPort implements IdPort {
 }
 
 // ---------------------------------------------------------------------------
-// StubModelPort — immediate text response for local dev (T04).
-// Replaced by real LLM adapter once adapters-llm is implemented (T05).
-// ---------------------------------------------------------------------------
-
-class StubModelPort implements ModelPort {
-  async generate(ctx: ModelContext) {
-    const goal = ctx.messages.find((m) => m.role === "user")?.content ?? "(unknown)";
-    return ok({
-      content: `[stub] Completed goal: ${goal}`,
-      toolCalls: [],
-      usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
-      finishReason: "stop" as const,
-    });
-  }
-}
-
-// ---------------------------------------------------------------------------
 // compose — wire all adapters and return the running app handle
 // ---------------------------------------------------------------------------
 
@@ -59,13 +44,19 @@ export interface App {
   fastify: FastifyInstance;
   gateway: WsGateway;
   service: HarnessService;
+  retentionJob: RetentionJob;
+  rollupJob: UsageRollupJob;
 }
 
 export function compose(env: Env): App {
   // --- Ports ---
   const idPort: IdPort = new CryptoIdPort();
   const clock = new WallClock();
-  const model: ModelPort = new StubModelPort();
+  const model = new VercelAiModelPort({
+    baseUrl: env.LLM_BASE_URL,
+    apiKey: env.LLM_API_KEY,
+    model: env.LLM_MODEL,
+  });
 
   // --- Storage (in-memory for T04; swap to Postgres adapters in T06) ---
   const rawEventLog = new InMemoryEventLog();
@@ -91,6 +82,7 @@ export function compose(env: Env): App {
       clock,
       idPort,
       middleware: [],
+      livePublish: (event) => bus.publish(event),
     },
     eventLog,
     stateStore,
@@ -116,6 +108,13 @@ export function compose(env: Env): App {
   registerBillingRoutes(fastify, dbPool);
   registerLifecycleRoutes(fastify, dbPool);
 
+  // --- Background jobs ---
+  // UsageRollupJob: rolls up usage_ledger into usage_rollups_daily every hour.
+  // RetentionJob: drops expired partitions once per day.
+  // Both are started lazily — the pool connects on first query.
+  const rollupJob = new UsageRollupJob(dbPool);
+  const retentionJob = new RetentionJob(dbPool);
+
   // --- WS ---
   const gateway = new WsGateway(service, bus);
 
@@ -128,5 +127,5 @@ export function compose(env: Env): App {
     }
   });
 
-  return { fastify, gateway, service };
+  return { fastify, gateway, service, retentionJob, rollupJob };
 }

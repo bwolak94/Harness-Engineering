@@ -112,6 +112,14 @@ export interface HarnessRuntimeDeps {
    * Defaults to "reject" — fail safe: do nothing when nobody responds.
    */
   approvalDefaultAction?: "approve" | "reject";
+
+  /**
+   * Optional live-publish function for ephemeral streaming events (model.delta, model.completed).
+   * These events are published directly without going through the persistent EventLog,
+   * so seq numbers are not consumed and Postgres is not written to.
+   * In production this is `(event) => bus.publish(event)`.
+   */
+  livePublish?: (event: import("@harness/contracts").HarnessEvent) => void;
 }
 
 /** Thrown by resume() / resumeWithDecision() when the workflow does not exist. */
@@ -358,14 +366,43 @@ export class HarnessRuntime {
       await eventLog.append(hydratedEvent);
       state = reduce(state, hydratedEvent);
 
+      const { livePublish } = this.deps;
+      let streamedText = "";
       const modelCtx: ModelContext = {
         messages: hydratedCtx.messages,
         tools: toolSchemas,
         workflowId,
         taskId: task.id,
+        ...(livePublish && {
+          onToken: (token: string) => {
+            streamedText += token;
+            livePublish({
+              id: idPort.newId(),
+              workflowId,
+              seq: state.seq, // ephemeral — same seq, not persisted
+              at: clock.nowIso(),
+              type: "model.delta",
+              payload: { text: token },
+            });
+          },
+        }),
       };
 
       const modelResult = await model.generate(modelCtx);
+      if (modelResult.ok && livePublish) {
+        livePublish({
+          id: idPort.newId(),
+          workflowId,
+          seq: state.seq,
+          at: clock.nowIso(),
+          type: "model.completed",
+          payload: {
+            text: modelResult.value.content ?? streamedText,
+            tokensIn: modelResult.value.usage.promptTokens,
+            tokensOut: modelResult.value.usage.completionTokens,
+          },
+        });
+      }
 
       if (!modelResult.ok) {
         const { error } = modelResult;
@@ -962,14 +999,43 @@ export class HarnessRuntime {
       await eventLog.append(hydratedEvent);
       state = reduce(state, hydratedEvent);
 
+      const { livePublish } = this.deps;
+      let streamedText = "";
       const modelCtx: ModelContext = {
         messages: hydratedCtx.messages,
         tools: toolSchemas,
         workflowId,
         taskId: task.id,
+        ...(livePublish && {
+          onToken: (token: string) => {
+            streamedText += token;
+            livePublish({
+              id: idPort.newId(),
+              workflowId,
+              seq: state.seq, // ephemeral — same seq, not persisted
+              at: clock.nowIso(),
+              type: "model.delta",
+              payload: { text: token },
+            });
+          },
+        }),
       };
 
       const modelResult = await model.generate(modelCtx);
+      if (modelResult.ok && livePublish) {
+        livePublish({
+          id: idPort.newId(),
+          workflowId,
+          seq: state.seq,
+          at: clock.nowIso(),
+          type: "model.completed",
+          payload: {
+            text: modelResult.value.content ?? streamedText,
+            tokensIn: modelResult.value.usage.promptTokens,
+            tokensOut: modelResult.value.usage.completionTokens,
+          },
+        });
+      }
 
       if (!modelResult.ok) {
         const { error } = modelResult;
@@ -1582,14 +1648,43 @@ export class HarnessRuntime {
       await eventLog.append(hydratedEvent);
       state = reduce(state, hydratedEvent);
 
+      const { livePublish } = this.deps;
+      let streamedText = "";
       const modelCtx: ModelContext = {
         messages: hydratedCtx.messages,
         tools: toolSchemas,
         workflowId,
         taskId: task.id,
+        ...(livePublish && {
+          onToken: (token: string) => {
+            streamedText += token;
+            livePublish({
+              id: idPort.newId(),
+              workflowId,
+              seq: state.seq, // ephemeral — same seq, not persisted
+              at: clock.nowIso(),
+              type: "model.delta",
+              payload: { text: token },
+            });
+          },
+        }),
       };
 
       const modelResult = await model.generate(modelCtx);
+      if (modelResult.ok && livePublish) {
+        livePublish({
+          id: idPort.newId(),
+          workflowId,
+          seq: state.seq,
+          at: clock.nowIso(),
+          type: "model.completed",
+          payload: {
+            text: modelResult.value.content ?? streamedText,
+            tokensIn: modelResult.value.usage.promptTokens,
+            tokensOut: modelResult.value.usage.completionTokens,
+          },
+        });
+      }
 
       if (!modelResult.ok) {
         const { error } = modelResult;

@@ -1,6 +1,6 @@
 import type { HarnessEvent } from "@harness/contracts";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useRef, useState } from "react";
+import { forwardRef, useRef, useState } from "react";
 import { cn } from "../../../shared/lib/cn.js";
 import type { ConnectionStatus } from "../../../shared/transport/harness-socket.js";
 import { Badge } from "../../../shared/ui/badge.js";
@@ -23,7 +23,14 @@ const EVENT_META: Record<string, EventMeta> = {
   "tool.succeeded": { label: "tool.ok", variant: "success" },
   "tool.failed": { label: "tool.err", variant: "error" },
   "state.checkpointed": { label: "checkpoint", variant: "neutral" },
+  "context.hydrated": { label: "ctx.hydrated", variant: "neutral" },
+  "context.summarized": { label: "ctx.summarized", variant: "neutral" },
+  "model.delta": { label: "stream.δ", variant: "info" },
+  "model.completed": { label: "stream.done", variant: "info" },
 };
+
+// Streaming events are noisy (one per token, all seq=1) — hide from "all" by default.
+const STREAMING_TYPES = new Set(["model.delta", "model.completed"]);
 
 function getEventMeta(type: string): EventMeta {
   return EVENT_META[type] ?? { label: type, variant: "neutral" };
@@ -33,12 +40,20 @@ function getEventMeta(type: string): EventMeta {
 // EventRow — single row in the list
 // ---------------------------------------------------------------------------
 
-function EventRow({ event, style }: { event: HarnessEvent; style: React.CSSProperties }) {
+const EventRow = forwardRef<
+  HTMLDivElement,
+  { event: HarnessEvent; style: React.CSSProperties; "data-index": number }
+>(function EventRow({ event, style, "data-index": dataIndex }, ref) {
   const [expanded, setExpanded] = useState(false);
   const meta = getEventMeta(event.type);
 
   return (
-    <div style={style} className="flex flex-col border-b border-border px-3 py-2 animate-fade-in">
+    <div
+      ref={ref}
+      data-index={dataIndex}
+      style={style}
+      className="flex flex-col border-b border-border px-3 py-2 animate-fade-in"
+    >
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -65,7 +80,7 @@ function EventRow({ event, style }: { event: HarnessEvent; style: React.CSSPrope
       )}
     </div>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // EventStreamPane — virtualized list (Pattern: Virtualization)
@@ -84,14 +99,19 @@ export function EventStreamPane({ events, status, lagged, className }: EventStre
   const [filter, setFilter] = useState<string>(ALL_TYPES);
   const parentRef = useRef<HTMLDivElement>(null);
 
-  const filtered = filter === ALL_TYPES ? events : events.filter((e) => e.type === filter);
+  const filtered =
+    filter === ALL_TYPES
+      ? events.filter((e) => !STREAMING_TYPES.has(e.type))
+      : events.filter((e) => e.type === filter);
 
   // TanStack Virtual — only DOM nodes for visible rows.
+  // measureElement enables dynamic row heights so expanded rows don't overlap.
   const rowVirtualizer = useVirtualizer({
     count: filtered.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 42,
     overscan: 10,
+    measureElement: (el) => el.getBoundingClientRect().height,
   });
 
   const eventTypes = [...new Set(events.map((e) => e.type))];
@@ -163,6 +183,8 @@ export function EventStreamPane({ events, status, lagged, className }: EventStre
                 <EventRow
                   key={event.id}
                   event={event}
+                  data-index={virtualRow.index}
+                  ref={rowVirtualizer.measureElement}
                   style={{
                     position: "absolute",
                     top: 0,

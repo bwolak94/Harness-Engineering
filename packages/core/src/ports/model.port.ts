@@ -31,6 +31,8 @@ export interface ModelContext {
   tools: readonly ModelToolSchema[];
   workflowId: string;
   taskId: string;
+  /** Called with each streamed text chunk. Adapter uses streamText when provided. */
+  onToken?: (token: string) => void;
 }
 
 export interface ModelToolSchema {

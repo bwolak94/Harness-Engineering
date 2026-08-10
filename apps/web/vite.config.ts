@@ -7,12 +7,12 @@ export default defineConfig({
     proxy: {
       // HTTP API — forward /workflows to the Fastify server
       "/workflows": {
-        target: "http://localhost:3000",
+        target: "http://localhost:3001",
         changeOrigin: true,
       },
       // WebSocket stream — forward /stream to the Fastify server
       "/stream": {
-        target: "ws://localhost:3000",
+        target: "ws://localhost:3001",
         ws: true,
       },
     },

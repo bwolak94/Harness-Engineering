@@ -19,8 +19,10 @@ import type { ConnectionStatus } from "../../../shared/transport/harness-socket.
 export interface WorkflowStore {
   // Current workflow
   workflowId: string | null;
-  // All received events in arrival order
+  // Events from the current workflow only (resets on subscribe)
   events: HarnessEvent[];
+  // All events from all workflows since page load — drives the chat transcript
+  allEvents: HarnessEvent[];
   // Workflow state computed incrementally by the reducer
   state: WorkflowState | null;
   // WS connection status
@@ -40,13 +42,13 @@ const socket = new HarnessSocket();
 export const useWorkflowStore = create<WorkflowStore>((set, get) => {
   // Wire socket callbacks once (outside state) to avoid re-registering on every render.
   socket.onEvent((event) => {
-    const { workflowId, state, events } = get();
+    const { workflowId, state, events, allEvents } = get();
     if (event.workflowId !== workflowId) return;
 
     const prevState = state ?? initialWorkflowState(event.workflowId);
     const nextState = reduce(prevState, event);
 
-    set({ events: [...events, event], state: nextState });
+    set({ events: [...events, event], allEvents: [...allEvents, event], state: nextState });
   });
 
   socket.onStatus((status) => {
@@ -60,6 +62,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => {
   return {
     workflowId: null,
     events: [],
+    allEvents: [],
     state: null,
     status: "disconnected",
     lagged: false,
@@ -68,6 +71,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => {
       set({
         workflowId,
         events: [],
+        // allEvents intentionally NOT cleared — preserves chat history across workflows
         state: initialWorkflowState(workflowId),
         lagged: false,
       });
@@ -84,6 +88,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => {
       set({
         workflowId: null,
         events: [],
+        allEvents: [],
         state: null,
         status: "disconnected",
         lagged: false,

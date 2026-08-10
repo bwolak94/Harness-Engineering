@@ -136,6 +136,23 @@ CREATE TABLE IF NOT EXISTS policies (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tenant_deks_tenant_version
+  ON tenant_deks (tenant_id, version);
+
+CREATE TABLE IF NOT EXISTS secrets (
+  id          TEXT        PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  tenant_id   TEXT        NOT NULL,
+  name        TEXT        NOT NULL,
+  ciphertext  TEXT        NOT NULL,
+  dek_version INTEGER     NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (tenant_id, name),
+  CONSTRAINT fk_secret_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_secrets_tenant_name ON secrets (tenant_id, name);
+
 CREATE TABLE IF NOT EXISTS plan_limits (
   plan             TEXT    PRIMARY KEY,
   max_concurrency  INTEGER NOT NULL DEFAULT 5,
@@ -212,6 +229,39 @@ CREATE TABLE IF NOT EXISTS step_leases (
   heartbeat_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS outbox (
+  id              TEXT        PRIMARY KEY,
+  tenant_id       TEXT        NOT NULL,
+  workflow_id     TEXT,
+  idempotency_key TEXT        NOT NULL UNIQUE,
+  payload         JSONB       NOT NULL DEFAULT '{}',
+  status          TEXT        NOT NULL DEFAULT 'pending',
+  attempts        INTEGER     NOT NULL DEFAULT 0,
+  last_error      TEXT,
+  next_retry_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  delivered_at    TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS idempotency_records (
+  idempotency_key TEXT        PRIMARY KEY,
+  tenant_id       TEXT        NOT NULL,
+  result          JSONB,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at      TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '24 hours'
+);
+
+CREATE TABLE IF NOT EXISTS blob_refs (
+  id          TEXT        PRIMARY KEY,
+  tenant_id   TEXT        NOT NULL,
+  workflow_id TEXT,
+  bucket      TEXT        NOT NULL,
+  key         TEXT        NOT NULL,
+  size_bytes  BIGINT      NOT NULL DEFAULT 0,
+  mime_type   TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- 5. Row-Level Security
 ALTER TABLE workflows    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE events       ENABLE ROW LEVEL SECURITY;
@@ -232,6 +282,10 @@ ALTER TABLE usage_rollups_daily ENABLE ROW LEVEL SECURITY;
 ALTER TABLE approvals           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE job_queue           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE step_leases         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE secrets             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE outbox              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE idempotency_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE blob_refs           ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE tenants          FORCE ROW LEVEL SECURITY;
 ALTER TABLE users            FORCE ROW LEVEL SECURITY;
@@ -249,6 +303,10 @@ ALTER TABLE usage_rollups_daily FORCE ROW LEVEL SECURITY;
 ALTER TABLE approvals           FORCE ROW LEVEL SECURITY;
 ALTER TABLE job_queue           FORCE ROW LEVEL SECURITY;
 ALTER TABLE step_leases         FORCE ROW LEVEL SECURITY;
+ALTER TABLE secrets             FORCE ROW LEVEL SECURITY;
+ALTER TABLE outbox              FORCE ROW LEVEL SECURITY;
+ALTER TABLE idempotency_records FORCE ROW LEVEL SECURITY;
+ALTER TABLE blob_refs           FORCE ROW LEVEL SECURITY;
 
 -- Drop existing policies before creating (idempotency)
 DO $$ DECLARE r RECORD;
@@ -282,6 +340,10 @@ CREATE POLICY tenant_isolation ON usage_rollups_daily USING (tenant_id = current
 CREATE POLICY tenant_isolation ON approvals           USING (tenant_id = current_setting('app.tenant_id', true));
 CREATE POLICY tenant_isolation ON job_queue           USING (tenant_id = current_setting('app.tenant_id', true));
 CREATE POLICY tenant_isolation ON step_leases         USING (tenant_id = current_setting('app.tenant_id', true));
+CREATE POLICY tenant_isolation ON secrets             USING (tenant_id = current_setting('app.tenant_id', true));
+CREATE POLICY tenant_isolation ON outbox              USING (tenant_id = current_setting('app.tenant_id', true));
+CREATE POLICY tenant_isolation ON idempotency_records USING (tenant_id = current_setting('app.tenant_id', true));
+CREATE POLICY tenant_isolation ON blob_refs           USING (tenant_id = current_setting('app.tenant_id', true));
 
 -- 6. Indexes
 CREATE INDEX IF NOT EXISTS idx_job_queue_run_after
@@ -354,49 +416,25 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO app_rw;
 `;
 
 /**
- * SECRETS_SQL — DDL for the secrets table (0003_secrets.sql inline).
- * Applied after MULTI_TENANCY_SQL in Testcontainers tests.
- */
-export const SECRETS_SQL = /* sql */ `
-CREATE UNIQUE INDEX IF NOT EXISTS idx_tenant_deks_tenant_version
-  ON tenant_deks (tenant_id, version);
-
-CREATE TABLE IF NOT EXISTS secrets (
-  id          TEXT    PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  tenant_id   TEXT    NOT NULL,
-  name        TEXT    NOT NULL,
-  ciphertext  TEXT    NOT NULL,
-  dek_version INTEGER NOT NULL,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (tenant_id, name),
-  CONSTRAINT fk_secret_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_secrets_tenant_name ON secrets (tenant_id, name);
-
-ALTER TABLE secrets ENABLE ROW LEVEL SECURITY;
-ALTER TABLE secrets FORCE ROW LEVEL SECURITY;
-
-CREATE POLICY secrets_isolation ON secrets
-  USING (tenant_id = current_setting('app.tenant_id', TRUE));
-
-GRANT SELECT, INSERT, UPDATE, DELETE ON secrets TO app_rw;
-`;
-
-/**
  * Applies the multi-tenancy schema additions to the given pool.
  * The pool must already have the base schema applied (applySchema).
  * Intended for Testcontainers-based tests and dev bootstrapping.
+ *
+ * Includes: all control-plane tables (tenants, users, memberships,
+ * platform_api_keys, tenant_deks, tool_definitions, tool_versions,
+ * mcp_servers, agents, policies, secrets), all data-plane tables
+ * (usage_ledger, usage_rollups_daily, approvals, job_queue, step_leases,
+ * outbox, idempotency_records, blob_refs), RLS policies, indexes, and grants.
  */
 export async function applyMultiTenancy(pool: Pool): Promise<void> {
   await pool.query(MULTI_TENANCY_SQL);
 }
 
 /**
- * Applies the secrets schema additions (0003_secrets.sql) to the given pool.
- * Must be called after applyMultiTenancy().
+ * No-op alias kept for backwards compatibility.
+ * Secrets DDL is now included in MULTI_TENANCY_SQL / applyMultiTenancy().
+ * @deprecated Call applyMultiTenancy() instead.
  */
-export async function applySecrets(pool: Pool): Promise<void> {
-  await pool.query(SECRETS_SQL);
+export async function applySecrets(_pool: Pool): Promise<void> {
+  // no-op — secrets table is created by applyMultiTenancy()
 }
