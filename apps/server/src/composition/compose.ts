@@ -6,6 +6,7 @@ import {
   InMemoryStateStore,
   InMemoryToolRegistry,
 } from "@harness/adapters-memory";
+import { RetentionJob, UsageRollupJob } from "@harness/adapters-postgres";
 import type { Env } from "@harness/contracts/env";
 import type { IdPort, ModelContext, ModelPort } from "@harness/core";
 import { WallClock, ok } from "@harness/core";
@@ -59,6 +60,8 @@ export interface App {
   fastify: FastifyInstance;
   gateway: WsGateway;
   service: HarnessService;
+  retentionJob: RetentionJob;
+  rollupJob: UsageRollupJob;
 }
 
 export function compose(env: Env): App {
@@ -116,6 +119,13 @@ export function compose(env: Env): App {
   registerBillingRoutes(fastify, dbPool);
   registerLifecycleRoutes(fastify, dbPool);
 
+  // --- Background jobs ---
+  // UsageRollupJob: rolls up usage_ledger into usage_rollups_daily every hour.
+  // RetentionJob: drops expired partitions once per day.
+  // Both are started lazily — the pool connects on first query.
+  const rollupJob = new UsageRollupJob(dbPool);
+  const retentionJob = new RetentionJob(dbPool);
+
   // --- WS ---
   const gateway = new WsGateway(service, bus);
 
@@ -128,5 +138,5 @@ export function compose(env: Env): App {
     }
   });
 
-  return { fastify, gateway, service };
+  return { fastify, gateway, service, retentionJob, rollupJob };
 }

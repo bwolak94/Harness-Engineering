@@ -27,13 +27,13 @@ export interface DeletionResult {
 }
 
 // Tables in dependency order (children first).
-// Tables that exist in the current schema (applyMultiTenancy DDL).
-// outbox, idempotency_records, and blob_refs are planned in the data model
-// but not yet DDL'd — add them here when their migrations land.
 const DATA_PLANE_TABLES = [
   "approvals",
   "step_leases",
   "job_queue",
+  "outbox",
+  "idempotency_records",
+  "blob_refs",
   "snapshots",
   "events",
   "workflows",
@@ -42,9 +42,8 @@ const DATA_PLANE_TABLES = [
   "usage_ledger",
 ] as const;
 
-// secrets is created by applySecrets() (0003_secrets.sql), not applyMultiTenancy().
-// Add it back here once that migration is applied unconditionally at startup.
 const CONTROL_PLANE_TABLES = [
+  "secrets",
   "tenant_deks",
   "platform_api_keys",
   "tool_versions",

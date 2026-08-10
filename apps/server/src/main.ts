@@ -8,7 +8,11 @@ import { compose } from "./composition/compose.js";
 
 async function main(): Promise<void> {
   const env = parseEnv();
-  const { fastify, gateway } = compose(env);
+  const { fastify, gateway, retentionJob, rollupJob } = compose(env);
+
+  // Start background jobs after composition.
+  rollupJob.start();
+  retentionJob.start();
 
   // Graceful shutdown — SIGTERM from container orchestrator (Kubernetes, Docker).
   // Budget: 5 s to finish in-flight steps, then force-exit.
@@ -20,6 +24,8 @@ async function main(): Promise<void> {
     }, 5_000);
 
     try {
+      rollupJob.stop();
+      retentionJob.stop();
       await fastify.close(); // stops accepting new HTTP/WS connections
       await gateway.close(); // closes open WS subscriptions
       clearTimeout(deadline);
