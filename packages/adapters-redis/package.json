@@ -1,0 +1,29 @@
+{
+  "name": "@harness/adapters-redis",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@harness/core": "workspace:*",
+    "ioredis": "^5.6.1"
+  },
+  "devDependencies": {
+    "@testcontainers/redis": "^10.24.2",
+    "@types/node": "^26.0.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

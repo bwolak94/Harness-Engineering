@@ -194,7 +194,8 @@ CREATE TABLE IF NOT EXISTS approvals (
 CREATE TABLE IF NOT EXISTS job_queue (
   id           TEXT        PRIMARY KEY,
   tenant_id    TEXT        NOT NULL,
-  workflow_id  TEXT        NOT NULL,
+  workflow_id  TEXT        NOT NULL UNIQUE,
+  task         JSONB       NOT NULL DEFAULT '{}'::jsonb,
   priority     INTEGER     NOT NULL DEFAULT 0,
   run_after    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   attempts     INTEGER     NOT NULL DEFAULT 0,

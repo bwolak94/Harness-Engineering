@@ -7,3 +7,5 @@ export { applyMultiTenancy, applySecrets } from "./db/multi-tenancy.js";
 export { withTenantCtx } from "./db/tenant-transaction.js";
 export { PostgresTenantStore } from "./tenant-store.js";
 export { PostgresSecretStore } from "./postgres-secret-store.js";
+export { PostgresJobQueue } from "./postgres-job-queue.js";
+export { PostgresStepLease } from "./postgres-step-lease.js";

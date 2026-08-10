@@ -39,6 +39,18 @@ const EnvSchema = z.object({
     .optional()
     .default("change-me-in-production-at-least-32-chars"),
 
+  // Redis (optional — rate limiter uses in-memory fallback when absent)
+  REDIS_URL: z.string().url().optional(),
+
+  // Worker process
+  WORKER_ID: z.string().min(1).default("worker-1"),
+  WORKER_LEASE_DURATION_MS: z.coerce.number().int().positive().default(300_000),
+  WORKER_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(1_000),
+  WORKER_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
+
+  // Rate limiting — API requests per tenant per minute
+  RATE_LIMIT_RPM: z.coerce.number().int().positive().default(60),
+
   // Budget defaults
   DEFAULT_MAX_TOKENS: z.coerce.number().int().positive().default(100_000),
   DEFAULT_MAX_STEPS: z.coerce.number().int().positive().default(20),

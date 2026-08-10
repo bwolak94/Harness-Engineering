@@ -1,0 +1,26 @@
+{
+  "name": "@harness/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@harness/adapters-memory": "workspace:*",
+    "@harness/adapters-postgres": "workspace:*",
+    "@harness/contracts": "workspace:*",
+    "@harness/core": "workspace:*",
+    "pg": "^8.13.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "@types/pg": "^8.11.11",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
