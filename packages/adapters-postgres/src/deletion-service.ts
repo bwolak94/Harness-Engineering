@@ -42,8 +42,9 @@ const DATA_PLANE_TABLES = [
   "usage_ledger",
 ] as const;
 
+// secrets is created by applySecrets() (0003_secrets.sql), not applyMultiTenancy().
+// Add it back here once that migration is applied unconditionally at startup.
 const CONTROL_PLANE_TABLES = [
-  "secrets",
   "tenant_deks",
   "platform_api_keys",
   "tool_versions",
