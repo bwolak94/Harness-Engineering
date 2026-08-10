@@ -13,6 +13,7 @@ import { createDefaultToolExecutors } from "@harness/core/tools";
 import Fastify, { type FastifyInstance } from "fastify";
 import { Pool } from "pg";
 import { registerAuthMiddleware } from "../http/auth-middleware.js";
+import { registerObservabilityRoutes } from "../http/observability-routes.js";
 import { registerRateLimitMiddleware } from "../http/rate-limit-middleware.js";
 import { registerTenantRoutes } from "../http/tenant-routes.js";
 import { registerWorkflowRoutes } from "../http/workflow-routes.js";
@@ -109,6 +110,7 @@ export function compose(env: Env): App {
   // safe even when running tests with in-memory adapters.
   const dbPool = new Pool({ connectionString: env.DATABASE_URL });
   registerTenantRoutes(fastify, dbPool);
+  registerObservabilityRoutes(fastify, dbPool);
 
   // --- WS ---
   const gateway = new WsGateway(service, bus);

@@ -1,5 +1,5 @@
 import { metrics } from "@opentelemetry/api";
-import type { Histogram, UpDownCounter } from "@opentelemetry/api";
+import type { Histogram, ObservableGauge, UpDownCounter } from "@opentelemetry/api";
 
 const METER_NAME = "@harness/observability";
 const METER_VERSION = "0.0.0";
@@ -35,6 +35,14 @@ export interface HarnessMetrics {
   llmOutputTokens: Histogram;
   /** Estimated cost of a single LLM call in USD. */
   llmCostUsd: Histogram;
+  /**
+   * Number of jobs currently waiting in the queue (unlocked + run_after <= NOW).
+   * Observable gauge — caller provides a callback that reads the current value.
+   * Low-cardinality labels: plan, region (never tenant_id).
+   */
+  queueDepth: ObservableGauge;
+  /** Number of workflows currently executing (holding a step lease). */
+  activeLeases: ObservableGauge;
 }
 
 /**
@@ -86,6 +94,14 @@ export function createHarnessMetrics(): HarnessMetrics {
     llmCostUsd: meter.createHistogram("harness.llm.cost_usd", {
       description: "Estimated cost of a single LLM call in USD.",
       unit: "usd",
+    }),
+    queueDepth: meter.createObservableGauge("harness.queue.depth", {
+      description: "Number of jobs currently waiting in the queue (eligible for dequeue).",
+      unit: "{job}",
+    }),
+    activeLeases: meter.createObservableGauge("harness.queue.active_leases", {
+      description: "Number of workflows currently executing (holding a step lease).",
+      unit: "{workflow}",
     }),
   };
 }

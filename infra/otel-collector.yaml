@@ -11,11 +11,48 @@ processors:
     timeout: 1s
     send_batch_size: 1024
 
+  # Tail sampling: 100% of error spans, 5% of success spans.
+  # Decision is made after the full trace is received — error traces are never dropped.
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 100000
+    policies:
+      - name: errors-policy
+        type: status_code
+        status_code: { status_codes: [ERROR] }
+      - name: probabilistic-success
+        type: probabilistic
+        probabilistic: { sampling_percentage: 5 }
+
+  # Attribute processor: add deployment environment for cardinality grouping.
+  attributes/add_env:
+    actions:
+      - key: deployment.environment
+        value: local
+        action: insert
+
 exporters:
-  otlp/jaeger:
-    endpoint: jaeger:4317
+  # Traces → Tempo
+  otlp/tempo:
+    endpoint: tempo:4317
     tls:
       insecure: true
+
+  # Metrics → Prometheus scrape endpoint on :9464
+  prometheus:
+    endpoint: 0.0.0.0:9464
+    namespace: harness
+    send_timestamps: true
+    metric_expiration: 5m
+
+  # Logs → Loki
+  loki:
+    endpoint: http://loki:3100/loki/api/v1/push
+    tls:
+      insecure: true
+    default_labels_enabled:
+      exporter: false
+      job: true
 
   debug:
     verbosity: basic
@@ -24,13 +61,13 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch]
-      exporters: [otlp/jaeger, debug]
+      processors: [attributes/add_env, batch, tail_sampling]
+      exporters: [otlp/tempo, debug]
     metrics:
       receivers: [otlp]
       processors: [batch]
-      exporters: [debug]
+      exporters: [prometheus, debug]
     logs:
       receivers: [otlp]
       processors: [batch]
-      exporters: [debug]
+      exporters: [loki, debug]
