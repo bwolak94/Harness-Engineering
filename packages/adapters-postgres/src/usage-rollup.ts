@@ -60,12 +60,12 @@ export class UsageRollupJob {
        SELECT
          tenant_id,
          ts::date                                               AS day,
-         COUNT(*) FILTER (WHERE kind = 'run')                  AS runs,
-         SUM(qty) FILTER (WHERE kind = 'step')::integer        AS steps,
-         SUM(qty) FILTER (WHERE kind = 'tokens_in')            AS tokens_in,
-         SUM(qty) FILTER (WHERE kind = 'tokens_out')           AS tokens_out,
-         SUM(cost_usd) FILTER (WHERE kind = 'run')             AS cost_usd,
-         COUNT(*) FILTER (WHERE kind = 'tool_error')           AS tool_errors
+         COUNT(*) FILTER (WHERE kind = 'run')                               AS runs,
+         COALESCE(SUM(qty) FILTER (WHERE kind = 'step'), 0)::integer       AS steps,
+         COALESCE(SUM(qty) FILTER (WHERE kind = 'tokens_in'), 0)           AS tokens_in,
+         COALESCE(SUM(qty) FILTER (WHERE kind = 'tokens_out'), 0)          AS tokens_out,
+         COALESCE(SUM(cost_usd) FILTER (WHERE kind = 'run'), 0)            AS cost_usd,
+         COUNT(*) FILTER (WHERE kind = 'tool_error')                       AS tool_errors
        FROM usage_ledger
        WHERE ts >= NOW() - ($1 * INTERVAL '1 day')
          AND ts <  NOW() + INTERVAL '1 day'
