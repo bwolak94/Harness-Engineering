@@ -7,7 +7,7 @@ import { EventStreamPane } from "../../../widgets/EventStreamPane/index.js";
 // ---------------------------------------------------------------------------
 
 export function InspectorPage() {
-  const { state, events, status, lagged, subscribe } = useWorkflowStore();
+  const { state, events, allEvents, status, lagged, subscribe } = useWorkflowStore();
 
   const handleWorkflowStarted = (workflowId: string) => {
     subscribe(workflowId);
@@ -18,7 +18,7 @@ export function InspectorPage() {
       {/* Chat panel — 40% */}
       <ChatPane
         state={state}
-        events={events}
+        events={allEvents}
         onWorkflowStarted={handleWorkflowStarted}
         className="w-[40%] min-w-[280px]"
       />

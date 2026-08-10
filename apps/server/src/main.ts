@@ -1,4 +1,6 @@
+import { applyMultiTenancy, applySchema } from "@harness/adapters-postgres";
 import { parseEnv } from "@harness/contracts/env";
+import { Pool } from "pg";
 import { compose } from "./composition/compose.js";
 
 // ---------------------------------------------------------------------------
@@ -8,6 +10,17 @@ import { compose } from "./composition/compose.js";
 
 async function main(): Promise<void> {
   const env = parseEnv();
+
+  // Apply idempotent DDL migrations on every boot — safe for dev and prod restarts.
+  const bootstrapPool = new Pool({ connectionString: env.DATABASE_URL });
+  try {
+    await applySchema(bootstrapPool);
+    await applyMultiTenancy(bootstrapPool);
+    console.log("[harness] schema applied");
+  } finally {
+    await bootstrapPool.end();
+  }
+
   const { fastify, gateway, retentionJob, rollupJob } = compose(env);
 
   // Start background jobs after composition.

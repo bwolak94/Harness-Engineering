@@ -62,9 +62,13 @@ class WsConnection {
     }
 
     // Step 3: Switch to real-time, deliver buffered events not in historical.
+    // Ephemeral events (model.delta, model.completed) are never in the EventLog,
+    // so they bypass the seq dedup check to avoid being silently dropped when their
+    // seq equals the last replayed seq.
     this.replaying = false;
     for (const event of this.buffer) {
-      if (event.seq > lastReplayedSeq) {
+      const isEphemeral = event.type === "model.delta" || event.type === "model.completed";
+      if (isEphemeral || event.seq > lastReplayedSeq) {
         this.deliver(event);
       }
     }

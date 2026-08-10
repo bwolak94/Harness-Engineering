@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { API_BASE } from "../../../shared/config.js";
+import { API_BASE, DEV_TOKEN } from "../../../shared/config.js";
 
 interface SubmitTaskArgs {
   goal: string;
@@ -16,9 +16,12 @@ interface SubmitTaskResult {
 }
 
 async function submitTask(args: SubmitTaskArgs): Promise<SubmitTaskResult> {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (DEV_TOKEN) headers["authorization"] = `Bearer ${DEV_TOKEN}`;
+
   const res = await fetch(`${API_BASE}/workflows`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers,
     body: JSON.stringify(args),
   });
 

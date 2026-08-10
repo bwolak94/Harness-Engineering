@@ -332,6 +332,27 @@ export const BudgetThresholdExceededEventSchema = BaseEventSchema.extend({
   }),
 });
 
+// ---------------------------------------------------------------------------
+// model.delta — one streamed token chunk (T05 streaming)
+// model.completed — final assembled text after streaming finishes
+// ---------------------------------------------------------------------------
+
+export const ModelDeltaEventSchema = BaseEventSchema.extend({
+  type: z.literal("model.delta"),
+  payload: z.object({
+    text: z.string(),
+  }),
+});
+
+export const ModelCompletedEventSchema = BaseEventSchema.extend({
+  type: z.literal("model.completed"),
+  payload: z.object({
+    text: z.string(),
+    tokensIn: z.number().int().nonnegative(),
+    tokensOut: z.number().int().nonnegative(),
+  }),
+});
+
 export const HarnessEventSchema = z.discriminatedUnion("type", [
   WorkflowStartedEventSchema,
   StepPlannedEventSchema,
@@ -355,6 +376,8 @@ export const HarnessEventSchema = z.discriminatedUnion("type", [
   ApprovalRejectedEventSchema,
   ApprovalTimedOutEventSchema,
   BudgetThresholdExceededEventSchema,
+  ModelDeltaEventSchema,
+  ModelCompletedEventSchema,
 ]);
 
 export type HarnessEvent = z.infer<typeof HarnessEventSchema>;
@@ -380,3 +403,5 @@ export type ApprovalGrantedEvent = z.infer<typeof ApprovalGrantedEventSchema>;
 export type ApprovalRejectedEvent = z.infer<typeof ApprovalRejectedEventSchema>;
 export type ApprovalTimedOutEvent = z.infer<typeof ApprovalTimedOutEventSchema>;
 export type BudgetThresholdExceededEvent = z.infer<typeof BudgetThresholdExceededEventSchema>;
+export type ModelDeltaEvent = z.infer<typeof ModelDeltaEventSchema>;
+export type ModelCompletedEvent = z.infer<typeof ModelCompletedEventSchema>;
