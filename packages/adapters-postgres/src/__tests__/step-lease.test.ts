@@ -52,8 +52,8 @@ describe.skipIf(!dockerAvailable)("PostgresStepLease (Testcontainers)", () => {
 
     tenantId = randomUUID();
     await pool.query(
-      "INSERT INTO tenants (id, name, plan) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
-      [tenantId, "Test Tenant", "free"],
+      "INSERT INTO tenants (id, slug, plan) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
+      [tenantId, "test-tenant", "free"],
     );
 
     lease = new PostgresStepLease(pool);

@@ -66,8 +66,8 @@ describe.skipIf(!dockerAvailable)("PostgresJobQueue (Testcontainers)", () => {
     // Insert a tenant and plan_limits row so bulkhead checks work.
     tenantId = randomUUID();
     await pool.query(
-      "INSERT INTO tenants (id, name, plan) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
-      [tenantId, "Test Tenant", "free"],
+      "INSERT INTO tenants (id, slug, plan) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
+      [tenantId, "test-tenant", "free"],
     );
     await pool.query(
       "INSERT INTO plan_limits (plan, max_concurrency) VALUES ($1, $2) ON CONFLICT (plan) DO UPDATE SET max_concurrency = $2",
