@@ -53,6 +53,9 @@ importers:
       '@harness/observability':
         specifier: workspace:*
         version: link:../../packages/observability
+      '@opentelemetry/api':
+        specifier: ^1.9.0
+        version: 1.9.1
       fastify:
         specifier: ^5.2.0
         version: 5.11.2

@@ -13,6 +13,13 @@ import type { Env } from "@harness/contracts/env";
 import type { IdPort } from "@harness/core";
 import { WallClock } from "@harness/core";
 import { createDefaultToolExecutors } from "@harness/core/tools";
+import {
+  TracingModelAdapter,
+  createHarnessMetrics,
+  withBudgetThreshold,
+  withTracing,
+} from "@harness/observability";
+import { trace } from "@opentelemetry/api";
 import Fastify, { type FastifyInstance } from "fastify";
 import { registerAuthMiddleware } from "../http/auth-middleware.js";
 import { registerBillingRoutes } from "../http/billing-routes.js";
@@ -49,14 +56,20 @@ export interface App {
 }
 
 export function compose(env: Env): App {
+  // --- Observability — tracer and metrics bound to the global OTel SDK ---
+  const tracer = trace.getTracer("@harness/server", "0.0.0");
+  const harnessMetrics = createHarnessMetrics();
+
   // --- Ports ---
   const idPort: IdPort = new CryptoIdPort();
   const clock = new WallClock();
-  const model = new VercelAiModelPort({
+  const rawModel = new VercelAiModelPort({
     baseUrl: env.LLM_BASE_URL,
     apiKey: env.LLM_API_KEY,
     model: env.LLM_MODEL,
   });
+  // Wrap the model port to emit gen_ai.chat spans and token/cost metrics.
+  const model = new TracingModelAdapter(rawModel, tracer, harnessMetrics);
 
   // --- Storage — durable Postgres adapters backed by the shared pool ---
   const { db, pool: dbPool } = createDb(env.DATABASE_URL);
@@ -82,7 +95,10 @@ export function compose(env: Env): App {
       toolRegistry,
       clock,
       idPort,
-      middleware: [],
+      // withBudgetThreshold emits budget.threshold.exceeded events at 80% of any limit.
+      // withTracing wraps each tool call in an OTel span (child of the workflow span).
+      // Order matters: budget threshold runs first so it fires before the tracing span closes.
+      middleware: [withBudgetThreshold(), withTracing(tracer, harnessMetrics)],
       livePublish: (event) => bus.publish(event),
     },
     eventLog,
