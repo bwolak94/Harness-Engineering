@@ -1,9 +1,13 @@
 import type { HarnessEvent } from "@harness/contracts";
 import type { WorkflowState } from "@harness/core";
 import { useEffect, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+import rehypeHighlight from "rehype-highlight";
+import remarkGfm from "remark-gfm";
 import { SubmitForm } from "../../../features/submit-task/index.js";
 import { cn } from "../../../shared/lib/cn.js";
 import { Badge } from "../../../shared/ui/badge.js";
+import { ApprovalPanel } from "../../ApprovalPanel/index.js";
 
 // ---------------------------------------------------------------------------
 // Transcript model — converts raw HarnessEvents into chat turns
@@ -159,12 +163,14 @@ function AssistantBubble({ turn }: { turn: AssistantTurn }) {
   return (
     <div className="flex justify-start">
       <div className="max-w-[90%] rounded-2xl rounded-bl-sm bg-surface-2 border border-border px-4 py-2.5">
-        <p className="text-sm text-[#e4e4e7] whitespace-pre-wrap break-words leading-relaxed">
-          {turn.content}
+        <div className="prose prose-invert prose-sm max-w-none text-[#e4e4e7] leading-relaxed [&_code]:bg-canvas [&_code]:px-1 [&_code]:rounded [&_code]:text-xs [&_pre]:bg-canvas [&_pre]:rounded-lg [&_pre]:p-3 [&_pre]:overflow-x-auto [&_a]:text-accent [&_a]:underline">
+          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+            {turn.content}
+          </ReactMarkdown>
           {turn.streaming && (
             <span className="inline-block w-0.5 h-4 ml-0.5 bg-accent animate-pulse align-text-bottom" />
           )}
-        </p>
+        </div>
       </div>
     </div>
   );
@@ -281,6 +287,9 @@ export function ChatPane({ state, events, onWorkflowStarted, className }: ChatPa
         )}
         <div ref={bottomRef} />
       </div>
+
+      {/* Approval panel — appears when approval.requested events are pending */}
+      <ApprovalPanel events={events} workflowId={state?.workflowId ?? null} />
 
       {/* Submit form */}
       <div className="border-t border-border px-4 py-3 shrink-0">

@@ -102,4 +102,66 @@ export class HarnessService {
   async resume(workflowId: string): Promise<WorkflowState> {
     return this.runtime.resume(workflowId);
   }
+
+  /**
+   * Record a human approval decision for a pending approval request.
+   * Appends an approval.granted event to the log; the WS bus delivers it live.
+   * Returns false when the workflow is not found.
+   */
+  async approveRequest(
+    workflowId: string,
+    requestId: string,
+    decidedBy: string,
+    comment?: string,
+  ): Promise<boolean> {
+    const versioned = await this.stateStore.load(workflowId);
+    if (!versioned) return false;
+    const now = new Date().toISOString();
+    const event: HarnessEvent = {
+      id: this.idPort.newId(),
+      workflowId,
+      seq: versioned.state.seq + 1,
+      at: now,
+      type: "approval.granted",
+      payload: {
+        requestId,
+        decidedBy,
+        decidedAt: now,
+        ...(comment !== undefined && { comment }),
+      },
+    } as HarnessEvent;
+    await this.eventLog.append(event);
+    return true;
+  }
+
+  /**
+   * Record a human rejection decision for a pending approval request.
+   * Appends an approval.rejected event to the log; the WS bus delivers it live.
+   * Returns false when the workflow is not found.
+   */
+  async rejectRequest(
+    workflowId: string,
+    requestId: string,
+    decidedBy: string,
+    reason?: string,
+  ): Promise<boolean> {
+    const versioned = await this.stateStore.load(workflowId);
+    if (!versioned) return false;
+    const now = new Date().toISOString();
+    const event: HarnessEvent = {
+      id: this.idPort.newId(),
+      workflowId,
+      seq: versioned.state.seq + 1,
+      at: now,
+      type: "approval.rejected",
+      payload: {
+        requestId,
+        decidedBy,
+        decidedAt: now,
+        ...(reason !== undefined && { reason }),
+      },
+    } as HarnessEvent;
+    await this.eventLog.append(event);
+    return true;
+  }
 }

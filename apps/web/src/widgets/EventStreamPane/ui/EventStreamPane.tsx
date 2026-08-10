@@ -4,6 +4,7 @@ import { forwardRef, useRef, useState } from "react";
 import { cn } from "../../../shared/lib/cn.js";
 import type { ConnectionStatus } from "../../../shared/transport/harness-socket.js";
 import { Badge } from "../../../shared/ui/badge.js";
+import { WaterfallTimeline } from "../../WaterfallTimeline/index.js";
 
 // ---------------------------------------------------------------------------
 // Event type → display metadata
@@ -97,6 +98,7 @@ interface EventStreamPaneProps {
 
 export function EventStreamPane({ events, status, lagged, className }: EventStreamPaneProps) {
   const [filter, setFilter] = useState<string>(ALL_TYPES);
+  const [showWaterfall, setShowWaterfall] = useState(true);
   const parentRef = useRef<HTMLDivElement>(null);
 
   const filtered =
@@ -133,6 +135,21 @@ export function EventStreamPane({ events, status, lagged, className }: EventStre
           <StatusDot status={status} />
         </div>
       </div>
+
+      {/* Waterfall timeline — collapsible */}
+      {events.some((e) => e.type === "tool.called") && (
+        <div className="border-b border-border shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowWaterfall((v) => !v)}
+            className="flex w-full items-center justify-between px-3 py-1.5 text-xs text-[#52525b] hover:text-[#a1a1aa] transition-colors"
+          >
+            <span className="font-mono">Tool timeline</span>
+            <span>{showWaterfall ? "▴" : "▾"}</span>
+          </button>
+          {showWaterfall && <WaterfallTimeline events={events} />}
+        </div>
+      )}
 
       {/* Filters */}
       {eventTypes.length > 0 && (

@@ -1,19 +1,19 @@
 import { randomUUID } from "node:crypto";
 import type { Socket } from "node:net";
 import { VercelAiModelPort } from "@harness/adapters-llm";
+import { InMemoryRateLimiter, InMemoryToolRegistry } from "@harness/adapters-memory";
 import {
-  InMemoryEventLog,
-  InMemoryRateLimiter,
-  InMemoryStateStore,
-  InMemoryToolRegistry,
-} from "@harness/adapters-memory";
-import { RetentionJob, UsageRollupJob } from "@harness/adapters-postgres";
+  PostgresEventLog,
+  PostgresStateStore,
+  RetentionJob,
+  UsageRollupJob,
+  createDb,
+} from "@harness/adapters-postgres";
 import type { Env } from "@harness/contracts/env";
 import type { IdPort } from "@harness/core";
 import { WallClock } from "@harness/core";
 import { createDefaultToolExecutors } from "@harness/core/tools";
 import Fastify, { type FastifyInstance } from "fastify";
-import { Pool } from "pg";
 import { registerAuthMiddleware } from "../http/auth-middleware.js";
 import { registerBillingRoutes } from "../http/billing-routes.js";
 import { registerLifecycleRoutes } from "../http/lifecycle-routes.js";
@@ -58,9 +58,10 @@ export function compose(env: Env): App {
     model: env.LLM_MODEL,
   });
 
-  // --- Storage (in-memory for T04; swap to Postgres adapters in T06) ---
-  const rawEventLog = new InMemoryEventLog();
-  const stateStore = new InMemoryStateStore();
+  // --- Storage — durable Postgres adapters backed by the shared pool ---
+  const { db, pool: dbPool } = createDb(env.DATABASE_URL);
+  const rawEventLog = new PostgresEventLog(db);
+  const stateStore = new PostgresStateStore(db);
 
   // --- Observer ---
   const bus = new EventBus();
@@ -99,10 +100,7 @@ export function compose(env: Env): App {
   // Rate limit after auth so we have tenantContext available.
   registerRateLimitMiddleware(fastify, rateLimiter, env.RATE_LIMIT_RPM);
   registerWorkflowRoutes(fastify, service);
-  // Tenant management and tool-definition routes (T15).
-  // `new Pool` is lazy — it does not connect until the first query, so this is
-  // safe even when running tests with in-memory adapters.
-  const dbPool = new Pool({ connectionString: env.DATABASE_URL });
+  // Tenant management, observability, billing, and lifecycle routes share the pool.
   registerTenantRoutes(fastify, dbPool);
   registerObservabilityRoutes(fastify, dbPool);
   registerBillingRoutes(fastify, dbPool);
