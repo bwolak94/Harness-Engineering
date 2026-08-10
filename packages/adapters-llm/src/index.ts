@@ -4,6 +4,7 @@
 // The domain never imports `ai` or `@ai-sdk/openai` directly.
 // All provider-specific types are mapped here.
 
+import { createOpenAI } from "@ai-sdk/openai";
 import type {
   ModelContext,
   ModelError,
@@ -13,7 +14,6 @@ import type {
 } from "@harness/core";
 import { err, ok } from "@harness/core";
 import type { Result } from "@harness/core";
-import { createOpenAI } from "@ai-sdk/openai";
 import { generateText, jsonSchema, streamText } from "ai";
 
 // ---------------------------------------------------------------------------

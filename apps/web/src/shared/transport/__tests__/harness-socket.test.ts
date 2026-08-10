@@ -130,8 +130,9 @@ describe("HarnessSocket", () => {
     lastWs?.simulateMessage({ type: "event", event: makeEvent(3) });
 
     // Simulate disconnect and reconnect — should send lastSeq = 4
-    const firstWs = lastWs!;
-    firstWs.simulateClose();
+    expect(lastWs).toBeDefined();
+    const firstWs = lastWs;
+    firstWs?.simulateClose();
 
     // Advance timers so reconnect fires (but we don't want to wait in tests)
     // Instead, directly verify the nextExpectedSeq is tracked by checking

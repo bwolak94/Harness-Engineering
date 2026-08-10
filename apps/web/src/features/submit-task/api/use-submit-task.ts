@@ -17,7 +17,7 @@ interface SubmitTaskResult {
 
 async function submitTask(args: SubmitTaskArgs): Promise<SubmitTaskResult> {
   const headers: Record<string, string> = { "content-type": "application/json" };
-  if (DEV_TOKEN) headers["authorization"] = `Bearer ${DEV_TOKEN}`;
+  if (DEV_TOKEN) headers.authorization = `Bearer ${DEV_TOKEN}`;
 
   const res = await fetch(`${API_BASE}/workflows`, {
     method: "POST",

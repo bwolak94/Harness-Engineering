@@ -140,7 +140,8 @@ describe("InMemorySecretStore", () => {
     await store.set("t1", "KEY", plaintext);
     // Verify list doesn't expose the plaintext
     const list = await store.list("t1");
-    const meta = list[0]!;
+    const meta = list[0];
+    expect(meta).toBeDefined();
     expect(JSON.stringify(meta)).not.toContain(plaintext);
   });
 });

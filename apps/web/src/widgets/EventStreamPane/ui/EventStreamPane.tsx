@@ -48,7 +48,12 @@ const EventRow = forwardRef<
   const meta = getEventMeta(event.type);
 
   return (
-    <div ref={ref} data-index={dataIndex} style={style} className="flex flex-col border-b border-border px-3 py-2 animate-fade-in">
+    <div
+      ref={ref}
+      data-index={dataIndex}
+      style={style}
+      className="flex flex-col border-b border-border px-3 py-2 animate-fade-in"
+    >
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}

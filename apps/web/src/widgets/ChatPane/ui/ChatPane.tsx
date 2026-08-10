@@ -52,7 +52,12 @@ function toTranscript(events: readonly HarnessEvent[]): ChatTurn[] {
           streamingIdx = turns.length;
           turns.push({ kind: "assistant", id: event.id, content: deltaText, streaming: true });
         } else {
-          turns[streamingIdx] = { kind: "assistant", id: event.id, content: deltaText, streaming: true };
+          turns[streamingIdx] = {
+            kind: "assistant",
+            id: event.id,
+            content: deltaText,
+            streaming: true,
+          };
         }
         break;
       }
@@ -60,7 +65,12 @@ function toTranscript(events: readonly HarnessEvent[]): ChatTurn[] {
       case "model.completed": {
         const finalText = event.payload.text || deltaText;
         if (streamingIdx !== -1) {
-          turns[streamingIdx] = { kind: "assistant", id: event.id, content: finalText, streaming: false };
+          turns[streamingIdx] = {
+            kind: "assistant",
+            id: event.id,
+            content: finalText,
+            streaming: false,
+          };
           streamingIdx = -1;
         } else if (finalText) {
           turns.push({ kind: "assistant", id: event.id, content: finalText, streaming: false });
@@ -111,7 +121,12 @@ function toTranscript(events: readonly HarnessEvent[]): ChatTurn[] {
         // If the LLM never streamed text, surface the result as an assistant turn
         const hasAssistant = turns.some((t) => t.kind === "assistant");
         if (!hasAssistant && typeof event.payload.result === "string" && event.payload.result) {
-          turns.push({ kind: "assistant", id: event.id, content: event.payload.result, streaming: false });
+          turns.push({
+            kind: "assistant",
+            id: event.id,
+            content: event.payload.result,
+            streaming: false,
+          });
         }
         break;
       }
@@ -132,7 +147,9 @@ function UserBubble({ turn }: { turn: UserTurn }) {
   return (
     <div className="flex justify-end">
       <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-accent/20 border border-accent/30 px-4 py-2.5">
-        <p className="text-sm text-white whitespace-pre-wrap break-words leading-relaxed">{turn.content}</p>
+        <p className="text-sm text-white whitespace-pre-wrap break-words leading-relaxed">
+          {turn.content}
+        </p>
       </div>
     </div>
   );
@@ -179,9 +196,7 @@ function ToolCard({ turn }: { turn: ToolTurn }) {
             {JSON.stringify(turn.result).length > 300 && "…"}
           </pre>
         )}
-        {turn.status === "error" && turn.error && (
-          <p className="text-ev-error">{turn.error}</p>
-        )}
+        {turn.status === "error" && turn.error && <p className="text-ev-error">{turn.error}</p>}
       </div>
     </div>
   );
@@ -217,10 +232,12 @@ export function ChatPane({ state, events, onWorkflowStarted, className }: ChatPa
   const transcript = toTranscript(events);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom as new turns arrive
+  // Auto-scroll to bottom as new turns arrive.
+  // events.length is the stable proxy for "transcript changed"; bottomRef is a stable ref object.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — events.length drives scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [transcript.length]);
+  }, [events.length]);
 
   const error = state?.status === "failed" || state?.status === "halted" ? state.error : null;
 

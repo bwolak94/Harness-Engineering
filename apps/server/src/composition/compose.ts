@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
 import type { Socket } from "node:net";
+import { VercelAiModelPort } from "@harness/adapters-llm";
 import {
   InMemoryEventLog,
   InMemoryRateLimiter,
   InMemoryStateStore,
   InMemoryToolRegistry,
 } from "@harness/adapters-memory";
-import { VercelAiModelPort } from "@harness/adapters-llm";
 import { RetentionJob, UsageRollupJob } from "@harness/adapters-postgres";
 import type { Env } from "@harness/contracts/env";
 import type { IdPort } from "@harness/core";
