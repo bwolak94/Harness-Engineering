@@ -27,20 +27,19 @@ export interface DeletionResult {
 }
 
 // Tables in dependency order (children first).
+// Tables that exist in the current schema (applyMultiTenancy DDL).
+// outbox, idempotency_records, and blob_refs are planned in the data model
+// but not yet DDL'd — add them here when their migrations land.
 const DATA_PLANE_TABLES = [
   "approvals",
-  "outbox",
-  "idempotency_records",
   "step_leases",
   "job_queue",
   "snapshots",
   "events",
   "workflows",
   "usage_rollups_daily",
-  // usage_ledger is partitioned — rows are spread across partition tables.
-  // We delete from the parent table; Postgres routes to the right partitions.
+  // usage_ledger is partitioned — Postgres routes deletes to the right partitions.
   "usage_ledger",
-  "blob_refs",
 ] as const;
 
 const CONTROL_PLANE_TABLES = [

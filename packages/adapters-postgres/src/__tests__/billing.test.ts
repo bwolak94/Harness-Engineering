@@ -90,7 +90,9 @@ describe.skipIf(!dockerAvailable)(
 
     it("aggregates rollups for a given month", async () => {
       const workflowId = randomUUID();
-      const ts = new Date("2026-03-15T10:00:00Z");
+      // Use the current date so the insert lands in an existing partition.
+      const ts = new Date();
+      const currentMonth = `${ts.getFullYear()}-${String(ts.getMonth() + 1).padStart(2, "0")}`;
 
       await ledger.append([
         { id: randomUUID(), tenantId, workflowId, ts, kind: "run", qty: 1n, costUsd: 0.05 },
@@ -98,9 +100,9 @@ describe.skipIf(!dockerAvailable)(
         { id: randomUUID(), tenantId, workflowId, ts, kind: "tokens_out", qty: 800n, costUsd: 0 },
         { id: randomUUID(), tenantId, workflowId, ts, kind: "step", qty: 3n, costUsd: 0 },
       ]);
-      await rollup.runRollup(30); // cover past months too
+      await rollup.runRollup();
 
-      const invoice = await billing.getMonthlyInvoice(tenantId, "2026-03");
+      const invoice = await billing.getMonthlyInvoice(tenantId, currentMonth);
       expect(invoice.runs).toBeGreaterThanOrEqual(1);
       expect(invoice.costUsd).toBeGreaterThanOrEqual(0.05);
       expect(invoice.tokensIn).toBeGreaterThanOrEqual(2000n);
@@ -113,7 +115,9 @@ describe.skipIf(!dockerAvailable)(
     // ---------------------------------------------------------------------------
 
     it("returns zero delta when rollup matches ledger", async () => {
-      const delta = await billing.verifyInvoiceWithLedger(tenantId, "2026-03");
+      const now = new Date();
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const delta = await billing.verifyInvoiceWithLedger(tenantId, currentMonth);
       // Rollup was just run, so delta should be 0.
       expect(delta.costDeltaUsd).toBeCloseTo(0, 6);
       expect(delta.runsDelta).toBe(0);
