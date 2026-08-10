@@ -96,12 +96,7 @@ const TIMEFRAME_VOL: Record<string, number> = {
 /** Maximum candles we generate to keep execution bounded. */
 const MAX_CANDLES = 100_000;
 
-function generateCandles(
-  symbol: string,
-  timeframe: string,
-  from: string,
-  to: string,
-): Candle[] {
+function generateCandles(symbol: string, timeframe: string, from: string, to: string): Candle[] {
   const intervalMs = TIMEFRAME_INTERVAL_MS[timeframe] ?? 86_400_000;
   const vol = TIMEFRAME_VOL[timeframe] ?? 0.014;
 
@@ -150,46 +145,46 @@ function generateCandles(
 type IndicatorSeries = Float64Array;
 
 function computeSma(closes: Float64Array, period: number): Float64Array {
-  const result = new Float64Array(closes.length).fill(NaN);
+  const result = new Float64Array(closes.length).fill(Number.NaN);
   if (period <= 0 || period > closes.length) return result;
   let sum = 0;
   for (let i = 0; i < closes.length; i++) {
-    sum += closes[i]!;
-    if (i >= period) sum -= closes[i - period]!;
+    sum += closes[i] ?? 0;
+    if (i >= period) sum -= closes[i - period] ?? 0;
     if (i >= period - 1) result[i] = sum / period;
   }
   return result;
 }
 
 function computeEma(closes: Float64Array, period: number): Float64Array {
-  const result = new Float64Array(closes.length).fill(NaN);
+  const result = new Float64Array(closes.length).fill(Number.NaN);
   if (period <= 0 || closes.length < period) return result;
   const k = 2 / (period + 1);
   // Seed with SMA of the first `period` values
   let ema = 0;
-  for (let i = 0; i < period; i++) ema += closes[i]!;
+  for (let i = 0; i < period; i++) ema += closes[i] ?? 0;
   ema /= period;
   result[period - 1] = ema;
   for (let i = period; i < closes.length; i++) {
-    ema = closes[i]! * k + ema * (1 - k);
+    ema = (closes[i] ?? 0) * k + ema * (1 - k);
     result[i] = ema;
   }
   return result;
 }
 
 function computeRsi(closes: Float64Array, period: number): Float64Array {
-  const result = new Float64Array(closes.length).fill(NaN);
+  const result = new Float64Array(closes.length).fill(Number.NaN);
   if (period <= 0 || closes.length < period + 1) return result;
   let avgGain = 0;
   let avgLoss = 0;
   for (let i = 1; i <= period; i++) {
-    const diff = closes[i]! - closes[i - 1]!;
+    const diff = (closes[i] ?? 0) - (closes[i - 1] ?? 0);
     if (diff > 0) avgGain += diff / period;
     else avgLoss += -diff / period;
   }
-  result[period] = 100 - 100 / (1 + (avgLoss === 0 ? Infinity : avgGain / avgLoss));
+  result[period] = 100 - 100 / (1 + (avgLoss === 0 ? Number.POSITIVE_INFINITY : avgGain / avgLoss));
   for (let i = period + 1; i < closes.length; i++) {
-    const diff = closes[i]! - closes[i - 1]!;
+    const diff = (closes[i] ?? 0) - (closes[i - 1] ?? 0);
     const gain = diff > 0 ? diff : 0;
     const loss = diff < 0 ? -diff : 0;
     avgGain = (avgGain * (period - 1) + gain) / period;
@@ -207,13 +202,21 @@ function getIndicatorSeries(
 ): IndicatorSeries {
   const period = Math.max(1, Math.round(Number(params?.period ?? 14)));
   const key = `${name.toUpperCase()}:${period}`;
-  if (cache.has(key)) return cache.get(key)!;
+  const cached = cache.get(key);
+  if (cached !== undefined) return cached;
   let series: IndicatorSeries;
   switch (name.toUpperCase()) {
-    case "SMA": series = computeSma(closes, period); break;
-    case "EMA": series = computeEma(closes, period); break;
-    case "RSI": series = computeRsi(closes, period); break;
-    default:    series = closes.slice(); // unknown indicator → treat as price
+    case "SMA":
+      series = computeSma(closes, period);
+      break;
+    case "EMA":
+      series = computeEma(closes, period);
+      break;
+    case "RSI":
+      series = computeRsi(closes, period);
+      break;
+    default:
+      series = closes.slice(); // unknown indicator → treat as price
   }
   cache.set(key, series);
   return series;
@@ -223,16 +226,10 @@ function getIndicatorSeries(
 // Rule evaluator — walks the RuleExpr DSL
 // ---------------------------------------------------------------------------
 
-function resolveValue(
-  val: number | string,
-  closes: Float64Array,
-  cache: Map<string, IndicatorSeries>,
-  i: number,
-): number {
+function resolveValue(val: number | string, closes: Float64Array, i: number): number {
   if (typeof val === "number") return val;
-  if (val === "price") return closes[i] ?? NaN;
-  // Treat unknown string values as another indicator by name (simplified to price)
-  return closes[i] ?? NaN;
+  // "price" or any unknown string → current close price
+  return closes[i] ?? Number.NaN;
 }
 
 function evalRule(
@@ -247,32 +244,29 @@ function evalRule(
 
   // Atomic rule: { indicator, params, op, value }
   const lhsSeries = getIndicatorSeries(rule.indicator, rule.params, closes, cache);
-  const lhsCurr = lhsSeries[i] ?? NaN;
-  const lhsPrev = i > 0 ? (lhsSeries[i - 1] ?? NaN) : NaN;
+  const lhsCurr = lhsSeries[i] ?? Number.NaN;
+  const lhsPrev = i > 0 ? (lhsSeries[i - 1] ?? Number.NaN) : Number.NaN;
 
-  const rhsCurr = resolveValue(rule.value, closes, cache, i);
-  const rhsPrev = i > 0 ? resolveValue(rule.value, closes, cache, i - 1) : NaN;
+  const rhsCurr = resolveValue(rule.value, closes, i);
+  const rhsPrev = i > 0 ? resolveValue(rule.value, closes, i - 1) : Number.NaN;
 
   if (Number.isNaN(lhsCurr) || Number.isNaN(rhsCurr)) return false;
 
   switch (rule.op) {
     case "crossAbove":
       return (
-        lhsCurr > rhsCurr &&
-        !Number.isNaN(lhsPrev) &&
-        !Number.isNaN(rhsPrev) &&
-        lhsPrev <= rhsPrev
+        lhsCurr > rhsCurr && !Number.isNaN(lhsPrev) && !Number.isNaN(rhsPrev) && lhsPrev <= rhsPrev
       );
     case "crossBelow":
       return (
-        lhsCurr < rhsCurr &&
-        !Number.isNaN(lhsPrev) &&
-        !Number.isNaN(rhsPrev) &&
-        lhsPrev >= rhsPrev
+        lhsCurr < rhsCurr && !Number.isNaN(lhsPrev) && !Number.isNaN(rhsPrev) && lhsPrev >= rhsPrev
       );
-    case "greaterThan": return lhsCurr > rhsCurr;
-    case "lessThan":    return lhsCurr < rhsCurr;
-    case "equals":      return Math.abs(lhsCurr - rhsCurr) < 1e-9;
+    case "greaterThan":
+      return lhsCurr > rhsCurr;
+    case "lessThan":
+      return lhsCurr < rhsCurr;
+    case "equals":
+      return Math.abs(lhsCurr - rhsCurr) < 1e-9;
   }
 }
 
@@ -308,16 +302,18 @@ function simulateTrades(
   let stopDist = 0;
 
   for (let i = 1; i < candles.length; i++) {
+    const candle = candles[i];
+    if (!candle) continue;
     if (!inTrade) {
       if (evalRule(entry, closes, cache, i)) {
         inTrade = true;
         entryIdx = i;
-        entryPrice = candles[i]!.close;
+        entryPrice = candle.close;
         // Stop distance = riskPct% of entry price (1 R = riskPct% move)
         stopDist = entryPrice * (riskPct / 100);
       }
     } else if (evalRule(exit, closes, cache, i)) {
-      const exitPrice = candles[i]!.close;
+      const exitPrice = candle.close;
       const rMultiple = stopDist > 0 ? (exitPrice - entryPrice) / stopDist : 0;
       const capitalAtRisk = capital * (riskPct / 100);
       const pnl = capitalAtRisk * rMultiple;
@@ -325,8 +321,8 @@ function simulateTrades(
       capital = Math.max(0.01, capital + pnl);
 
       trades.push({
-        entryAt: candles[entryIdx]!.ts,
-        exitAt: candles[i]!.ts,
+        entryAt: candles[entryIdx]?.ts ?? "",
+        exitAt: candle.ts,
         entryPrice: Math.round(entryPrice * 100) / 100,
         exitPrice: Math.round(exitPrice * 100) / 100,
         rMultiple: Math.round(rMultiple * 100) / 100,
@@ -345,10 +341,7 @@ function simulateTrades(
 // Statistics
 // ---------------------------------------------------------------------------
 
-function computeStats(
-  trades: TradeRecord[],
-  initialCapital: number,
-): BacktestRulesOutput["stats"] {
+function computeStats(trades: TradeRecord[], initialCapital: number): BacktestRulesOutput["stats"] {
   if (trades.length === 0) {
     return { trades: 0, winRate: 0, profitFactor: 0, expectancyR: 0, maxDrawdownPct: 0, sharpe: 0 };
   }
@@ -359,8 +352,7 @@ function computeStats(
   const grossLoss = Math.abs(losers.reduce((s, t) => s + t.pnl, 0));
 
   const winRate = winners.length / trades.length;
-  const profitFactor =
-    grossLoss === 0 ? (grossProfit > 0 ? 999.99 : 0) : grossProfit / grossLoss;
+  const profitFactor = grossLoss === 0 ? (grossProfit > 0 ? 999.99 : 0) : grossProfit / grossLoss;
 
   const rValues = trades.map((t) => t.rMultiple);
   const expectancyR = rValues.reduce((s, r) => s + r, 0) / rValues.length;
@@ -447,16 +439,22 @@ function selectSampleTrades(
   const indices = new Set<number>();
   indices.add(0);
   indices.add(trades.length - 1);
-  indices.add(trades.indexOf(sorted[0]!));
-  indices.add(trades.indexOf(sorted[sorted.length - 1]!));
+  const best = sorted[0];
+  const worst = sorted[sorted.length - 1];
+  if (best !== undefined) indices.add(trades.indexOf(best));
+  if (worst !== undefined) indices.add(trades.indexOf(worst));
   if (indices.size < maxSamples) {
-    indices.add(trades.indexOf(sorted[Math.floor(sorted.length / 2)]!));
+    const mid = sorted[Math.floor(sorted.length / 2)];
+    if (mid !== undefined) indices.add(trades.indexOf(mid));
   }
 
   return [...indices]
     .sort((a, b) => a - b)
     .slice(0, maxSamples)
-    .map((i) => strip(trades[i]!));
+    .flatMap((i) => {
+      const t = trades[i];
+      return t !== undefined ? [strip(t)] : [];
+    });
 }
 
 // ---------------------------------------------------------------------------
