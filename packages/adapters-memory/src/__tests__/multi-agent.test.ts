@@ -112,7 +112,8 @@ describe("multi-agent routing + filtered registry", () => {
     expect(decision.matchedBy).toBe("rule");
 
     const agentSpec = agentRegistry.get(decision.targetAgent);
-    const filtered = new FilteredToolRegistry(base, agentSpec!.toolNames);
+    expect(agentSpec).toBeDefined();
+    const filtered = new FilteredToolRegistry(base, agentSpec?.toolNames ?? []);
 
     const names = filtered.list().map((e) => e.definition.name);
     expect(names).toContain("analyzeInvestment");
@@ -128,7 +129,8 @@ describe("multi-agent routing + filtered registry", () => {
     expect(decision.targetAgent).toBe("operational-analyst");
 
     const agentSpec = agentRegistry.get(decision.targetAgent);
-    const filtered = new FilteredToolRegistry(base, agentSpec!.toolNames);
+    expect(agentSpec).toBeDefined();
+    const filtered = new FilteredToolRegistry(base, agentSpec?.toolNames ?? []);
 
     const names = filtered.list().map((e) => e.definition.name);
     expect(names).toContain("optimizeRoute");
@@ -143,7 +145,8 @@ describe("multi-agent routing + filtered registry", () => {
     expect(decision.targetAgent).toBe("commercial-analyst");
 
     const agentSpec = agentRegistry.get(decision.targetAgent);
-    const filtered = new FilteredToolRegistry(base, agentSpec!.toolNames);
+    expect(agentSpec).toBeDefined();
+    const filtered = new FilteredToolRegistry(base, agentSpec?.toolNames ?? []);
 
     const names = filtered.list().map((e) => e.definition.name);
     expect(names).toContain("calculateLandedCost");
