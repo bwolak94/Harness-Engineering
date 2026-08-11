@@ -87,7 +87,9 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm --filter @harness/web exec playwright install chromium --with-deps
       - name: Start backend
-        run: pnpm --filter @harness/server start &
+        # Call node directly — avoids --env-file flag in the pnpm start script
+        # which errors when .env is absent in CI (env vars injected via step env:).
+        run: node apps/server/dist/main.js &
         env:
           DATABASE_URL: postgresql://harness:harness@localhost:5432/harness
           LLM_API_KEY: test-key
@@ -96,7 +98,9 @@ jobs:
       - name: Start frontend
         run: pnpm --filter @harness/web preview --port 5173 &
       - name: Wait for services
-        run: npx wait-on http://localhost:5173 http://localhost:3000/workflows --timeout 30000
+        # Use tcp: checks — no HTTP auth required, works as soon as the port is open.
+        # 60 s budget accounts for Postgres schema migration on first boot.
+        run: npx wait-on tcp:localhost:5173 tcp:localhost:3000 --timeout 60000
       - name: Run E2E tests
         run: pnpm --filter @harness/web test:e2e
         env:
