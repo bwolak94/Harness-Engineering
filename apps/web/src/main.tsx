@@ -5,6 +5,7 @@ import { AppShell } from "./app/AppShell.js";
 import { Providers } from "./app/providers.js";
 import { useWorkflowStore } from "./entities/workflow/index.js";
 import { AnalyticsPage } from "./pages/analytics/index.js";
+import { FlowsPage } from "./pages/flows/index.js";
 import { HistoryPage } from "./pages/history/index.js";
 import { InspectorPage } from "./pages/inspector/index.js";
 import { McpRegistryPage } from "./pages/mcp-registry/index.js";
@@ -32,6 +33,16 @@ function App() {
         if (tab === "analytics") return <AnalyticsPage />;
         if (tab === "sandbox") return <SandboxPage />;
         if (tab === "registry") return <McpRegistryPage />;
+        if (tab === "flows") {
+          return (
+            <FlowsPage
+              onInspectWorkflow={(workflowId) => {
+                subscribe(workflowId);
+                navigate("inspector");
+              }}
+            />
+          );
+        }
         return null;
       }}
     </AppShell>

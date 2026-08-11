@@ -11,6 +11,7 @@ export default defineConfig({
       "/mcp": { target: "http://localhost:3001", changeOrigin: true },
       "/tenants": { target: "http://localhost:3001", changeOrigin: true },
       "/health": { target: "http://localhost:3001", changeOrigin: true },
+      "/flows": { target: "http://localhost:3001", changeOrigin: true },
       // WebSocket stream — forward /stream to the Fastify server
       "/stream": { target: "ws://localhost:3001", ws: true },
     },

@@ -4,6 +4,7 @@ import { EgressService } from "@harness/adapters-egress";
 import { VercelAiModelPort } from "@harness/adapters-llm";
 import {
   DEFAULT_AGENTS,
+  DEFAULT_FLOWS,
   DEFAULT_RULES,
   InMemoryAgentRegistry,
   InMemoryRateLimiter,
@@ -22,7 +23,13 @@ import type { ModelContext, ModelPort } from "@harness/core";
 import { ok } from "@harness/core";
 import type { IdPort } from "@harness/core";
 import { NoopBlobStorePort, NoopSecretPort, WallClock } from "@harness/core";
-import { EscalationClassifier, Router, RuleBasedClassifier } from "@harness/core";
+import {
+  EscalationClassifier,
+  FlowRunner,
+  Router,
+  RuleBasedClassifier,
+  Supervisor,
+} from "@harness/core";
 import { createDefaultToolExecutors } from "@harness/core/tools";
 import {
   TracingModelAdapter,
@@ -34,6 +41,7 @@ import { trace } from "@opentelemetry/api";
 import Fastify, { type FastifyInstance } from "fastify";
 import { registerAuthMiddleware } from "../http/auth-middleware.js";
 import { registerBillingRoutes } from "../http/billing-routes.js";
+import { registerFlowRoutes } from "../http/flow-routes.js";
 import { registerLifecycleRoutes } from "../http/lifecycle-routes.js";
 import { registerMcpRoutes } from "../http/mcp-routes.js";
 import { registerMultiAgentRoutes } from "../http/multi-agent-routes.js";
@@ -44,6 +52,7 @@ import { registerTenantRoutes } from "../http/tenant-routes.js";
 import { registerWorkflowRoutes } from "../http/workflow-routes.js";
 import { CompositeEventLog } from "../service/composite-event-log.js";
 import { EventBus } from "../service/event-bus.js";
+import { FlowService } from "../service/flow-service.js";
 import { HarnessService } from "../service/harness-service.js";
 import { MultiAgentService } from "../service/multi-agent-service.js";
 import { WsGateway } from "../ws/ws-gateway.js";
@@ -67,6 +76,7 @@ export interface App {
   gateway: WsGateway;
   service: HarnessService;
   multiAgentService: MultiAgentService;
+  flowService: FlowService;
   retentionJob: RetentionJob;
   rollupJob: UsageRollupJob;
 }
@@ -167,6 +177,22 @@ export function compose(env: Env): App {
     agentRegistry,
   });
 
+  // --- Flow runner + service ---
+  const supervisor = new Supervisor();
+  const flowRunner = new FlowRunner({
+    agentRegistry,
+    toolRegistry,
+    supervisor,
+    model,
+    eventLog,
+    stateStore,
+    clock,
+    idPort,
+    middleware: runtimeDeps.middleware,
+    livePublish: runtimeDeps.livePublish,
+  });
+  const flowService = new FlowService({ flows: DEFAULT_FLOWS, flowRunner });
+
   // --- Rate limiter (in-memory; swap to RedisRateLimiter in production) ---
   const rateLimiter = new InMemoryRateLimiter();
 
@@ -178,6 +204,7 @@ export function compose(env: Env): App {
   registerRateLimitMiddleware(fastify, rateLimiter, env.RATE_LIMIT_RPM);
   registerWorkflowRoutes(fastify, service);
   registerMultiAgentRoutes(fastify, multiAgentService);
+  registerFlowRoutes(fastify, flowService);
   registerMcpRoutes(fastify, egress, toolRegistry);
   registerSandboxRoutes(fastify, toolRegistry);
   // Tenant management, observability, billing, and lifecycle routes share the pool.
@@ -205,5 +232,5 @@ export function compose(env: Env): App {
     }
   });
 
-  return { fastify, gateway, service, multiAgentService, retentionJob, rollupJob };
+  return { fastify, gateway, service, multiAgentService, flowService, retentionJob, rollupJob };
 }
