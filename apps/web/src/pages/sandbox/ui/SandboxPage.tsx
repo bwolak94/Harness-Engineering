@@ -87,6 +87,19 @@ function buildTemplateObject(schema: Record<string, unknown>): Record<string, un
   return out;
 }
 
+// The withResultTruncation decorator in the tool chain serializes results to JSON strings.
+// Re-parse them so the output panel shows pretty-printed JSON rather than an escaped blob.
+function formatOutput(value: unknown): string {
+  if (typeof value === "string") {
+    try {
+      return JSON.stringify(JSON.parse(value), null, 2);
+    } catch {
+      return value;
+    }
+  }
+  return JSON.stringify(value, null, 2);
+}
+
 function buildTemplate(schema: Record<string, unknown>): string {
   return JSON.stringify(buildTemplateObject(schema), null, 2);
 }
@@ -295,7 +308,7 @@ export function SandboxPage() {
                         : "bg-ev-error/5 text-ev-error",
                     )}
                   >
-                    {JSON.stringify(invokeData.ok ? invokeData.result : invokeData.error, null, 2)}
+                    {formatOutput(invokeData.ok ? invokeData.result : invokeData.error)}
                   </pre>
                 </div>
               )}
