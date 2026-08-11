@@ -45,8 +45,9 @@ jobs:
         run: pnpm test
 
       - name: Eval golden set
-        run: pnpm eval --output packages/evals/eval-output
-        # Writes eval-report.json + eval-report.md alongside the JSON output.
+        run: pnpm eval
+        # Runs in human-readable mode; writes eval-report.json + eval-report.md to
+        # packages/evals/eval-output/ (default outputDir relative to package CWD).
         # Blocks merge when any golden case fails or a snapshot drifts.
 
       - name: Upload eval report
@@ -71,6 +72,7 @@ jobs:
     steps:
       - name: Download eval report (Node 22)
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: eval-report-node22
           path: eval-artifacts
