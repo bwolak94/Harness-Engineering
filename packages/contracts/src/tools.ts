@@ -12,6 +12,8 @@ export const ToolDefinitionSchema = z.object({
   costHint: z.enum(["free", "cheap", "moderate", "expensive"]).default("free"),
   inputSchema: z.record(z.string(), z.unknown()),
   outputSchema: z.record(z.string(), z.unknown()),
+  /** Representative real-world input shown in the Sandbox UI. */
+  exampleInput: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;

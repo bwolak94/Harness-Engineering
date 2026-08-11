@@ -16,26 +16,79 @@ const COST_VARIANT: Record<string, "success" | "warn" | "error" | "neutral"> = {
   expensive: "error",
 };
 
-function buildTemplate(schema: Record<string, unknown>): string {
-  // Produce a minimal JSON template from the JSON Schema properties.
-  const props = (schema.properties ?? {}) as Record<string, { type?: string; default?: unknown }>;
-  const template: Record<string, unknown> = {};
+interface PropDef {
+  type?: string;
+  default?: unknown;
+  enum?: unknown[];
+  minimum?: number;
+  maximum?: number;
+  exclusiveMinimum?: number | boolean;
+  exclusiveMaximum?: number | boolean;
+  minItems?: number;
+  items?: Record<string, unknown>;
+}
+
+function numericDefault(def: PropDef): number {
+  // Resolve exclusive bounds (JSON Schema draft-04 uses boolean; draft-07+ uses number).
+  const exMin = typeof def.exclusiveMinimum === "number" ? def.exclusiveMinimum : undefined;
+  const exMax = typeof def.exclusiveMaximum === "number" ? def.exclusiveMaximum : undefined;
+  const lo = exMin !== undefined ? exMin : def.minimum;
+  const hi = exMax !== undefined ? exMax : def.maximum;
+  const strictLo =
+    exMin !== undefined || (typeof def.exclusiveMinimum === "boolean" && def.exclusiveMinimum);
+  const strictHi =
+    exMax !== undefined || (typeof def.exclusiveMaximum === "boolean" && def.exclusiveMaximum);
+
+  if (lo !== undefined && hi !== undefined) {
+    const mid = (lo + hi) / 2;
+    return mid;
+  }
+  if (lo !== undefined) {
+    return strictLo ? lo + 1 : lo;
+  }
+  if (hi !== undefined) {
+    return strictHi ? hi - 1 : hi;
+  }
+  return 0;
+}
+
+function buildItemTemplate(itemSchema: Record<string, unknown>): unknown {
+  const type = itemSchema.type as string | undefined;
+  if (type === "object") return buildTemplateObject(itemSchema);
+  if (type === "string") return "";
+  if (type === "number" || type === "integer") return numericDefault(itemSchema as PropDef);
+  if (type === "boolean") return false;
+  return null;
+}
+
+function buildTemplateObject(schema: Record<string, unknown>): Record<string, unknown> {
+  const props = (schema.properties ?? {}) as Record<string, PropDef>;
+  const out: Record<string, unknown> = {};
   for (const [key, def] of Object.entries(props)) {
     if (def.default !== undefined) {
-      template[key] = def.default;
+      out[key] = def.default;
+    } else if (def.enum) {
+      out[key] = def.enum[0];
     } else if (def.type === "string") {
-      template[key] = "";
+      out[key] = "";
     } else if (def.type === "number" || def.type === "integer") {
-      template[key] = 0;
+      out[key] = numericDefault(def);
     } else if (def.type === "boolean") {
-      template[key] = false;
+      out[key] = false;
     } else if (def.type === "array") {
-      template[key] = [];
+      const count = def.minItems ?? 1;
+      out[key] = Array.from({ length: count }, () =>
+        def.items ? buildItemTemplate(def.items) : null,
+      );
     } else {
-      template[key] = null;
+      out[key] = null;
     }
   }
-  return JSON.stringify(template, null, 2);
+  return out;
+}
+
+function buildTemplate(schema: Record<string, unknown>): string {
+  return JSON.stringify(buildTemplateObject(schema), null, 2);
 }
 
 // ---------------------------------------------------------------------------
@@ -89,7 +142,11 @@ export function SandboxPage() {
 
   const handleSelect = (tool: SandboxTool) => {
     setSelected(tool);
-    setArgsJson(buildTemplate(tool.inputSchema));
+    setArgsJson(
+      tool.exampleInput
+        ? JSON.stringify(tool.exampleInput, null, 2)
+        : buildTemplate(tool.inputSchema),
+    );
     setParseError(null);
     reset();
   };

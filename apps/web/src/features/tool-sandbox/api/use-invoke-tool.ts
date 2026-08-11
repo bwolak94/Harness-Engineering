@@ -13,6 +13,7 @@ export interface SandboxTool {
   costHint: string;
   inputSchema: Record<string, unknown>;
   outputSchema: Record<string, unknown>;
+  exampleInput?: Record<string, unknown>;
 }
 
 async function fetchTools(): Promise<SandboxTool[]> {

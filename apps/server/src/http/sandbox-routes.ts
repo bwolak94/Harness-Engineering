@@ -34,6 +34,7 @@ export function registerSandboxRoutes(
         costHint: t.definition.costHint,
         inputSchema: t.definition.inputSchema,
         outputSchema: t.definition.outputSchema,
+        exampleInput: t.definition.exampleInput,
       })),
     });
   });
