@@ -1,5 +1,6 @@
 import { applyMultiTenancy, applySchema } from "@harness/adapters-postgres";
 import { parseEnv } from "@harness/contracts/env";
+import { initOtelSdk } from "@harness/observability";
 import { Pool } from "pg";
 import { compose } from "./composition/compose.js";
 
@@ -10,6 +11,14 @@ import { compose } from "./composition/compose.js";
 
 async function main(): Promise<void> {
   const env = parseEnv();
+
+  // Initialize OTel SDK before any instrumented code runs.
+  // SDK registers global TracerProvider and MeterProvider; must come first.
+  const otelSdk = initOtelSdk({
+    serviceName: env.OTEL_SERVICE_NAME,
+    otlpEndpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
+    enabled: env.NODE_ENV !== "test",
+  });
 
   // Apply idempotent DDL migrations on every boot — safe for dev and prod restarts.
   const bootstrapPool = new Pool({ connectionString: env.DATABASE_URL });
@@ -52,6 +61,7 @@ async function main(): Promise<void> {
 
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
   process.on("SIGINT", () => void shutdown("SIGINT"));
+  process.on("beforeExit", () => void otelSdk.shutdown());
 
   try {
     await fastify.listen({ port: env.PORT, host: env.HOST });

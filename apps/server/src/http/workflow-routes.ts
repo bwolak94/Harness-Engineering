@@ -71,4 +71,35 @@ export function registerWorkflowRoutes(fastify: FastifyInstance, service: Harnes
       reply.send({ events });
     },
   );
+
+  const ApprovalBodySchema = z.object({
+    requestId: z.string().min(1, "requestId is required"),
+    decidedBy: z.string().min(1).default("ui-user"),
+    comment: z.string().optional(),
+    reason: z.string().optional(),
+  });
+
+  // POST /workflows/:id/approve — record a human approval decision
+  fastify.post<{ Params: { id: string } }>("/workflows/:id/approve", async (req, reply) => {
+    const parsed = ApprovalBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return badRequest(reply, req, parsed.error.errors.map((e) => e.message).join("; "));
+    }
+    const { requestId, decidedBy, comment } = parsed.data;
+    const found = await service.approveRequest(req.params.id, requestId, decidedBy, comment);
+    if (!found) return notFound(reply, req, `Workflow '${req.params.id}' not found`);
+    reply.status(204).send();
+  });
+
+  // POST /workflows/:id/reject — record a human rejection decision
+  fastify.post<{ Params: { id: string } }>("/workflows/:id/reject", async (req, reply) => {
+    const parsed = ApprovalBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return badRequest(reply, req, parsed.error.errors.map((e) => e.message).join("; "));
+    }
+    const { requestId, decidedBy, reason } = parsed.data;
+    const found = await service.rejectRequest(req.params.id, requestId, decidedBy, reason);
+    if (!found) return notFound(reply, req, `Workflow '${req.params.id}' not found`);
+    reply.status(204).send();
+  });
 }

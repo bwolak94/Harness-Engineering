@@ -14,8 +14,10 @@ import type { ToolExecutor } from "../ports/tool-registry.port.js";
 import { createAnalyzeInvestmentTool } from "./n1-analyze-investment.js";
 import { createOptimizeRouteTool } from "./n2-optimize-route.js";
 import { createCalculateLandedCostTool } from "./n3-calculate-landed-cost.js";
+import { createBacktestRulesTool } from "./n4-backtest-rules.js";
 import { createAssessClaimTool } from "./n5-assess-claim.js";
 import { createScreenCandidatesTool } from "./n6-screen-candidates.js";
+import { createExplodeRecipeCostTool } from "./n7-explode-recipe-cost.js";
 import { createSimulatePVPaybackTool } from "./n8-simulate-pv-payback.js";
 import { createCalculateNetSalaryTool } from "./n9-calculate-net-salary.js";
 import { createProposeRepricingTool } from "./n10-propose-repricing.js";
@@ -25,9 +27,11 @@ import { createRunCodeTool } from "./run-code.js";
 export { createAnalyzeInvestmentTool } from "./n1-analyze-investment.js";
 export { createOptimizeRouteTool } from "./n2-optimize-route.js";
 export { createCalculateLandedCostTool } from "./n3-calculate-landed-cost.js";
+export { createBacktestRulesTool } from "./n4-backtest-rules.js";
 export { createAssessClaimTool } from "./n5-assess-claim.js";
 export { createScreenCandidatesTool } from "./n6-screen-candidates.js";
 export type { ScreenCandidatesDeps } from "./n6-screen-candidates.js";
+export { createExplodeRecipeCostTool } from "./n7-explode-recipe-cost.js";
 export { createSimulatePVPaybackTool } from "./n8-simulate-pv-payback.js";
 export { createCalculateNetSalaryTool } from "./n9-calculate-net-salary.js";
 export { createProposeRepricingTool } from "./n10-propose-repricing.js";
@@ -116,10 +120,12 @@ export function createDefaultToolExecutors(): ToolExecutor[] {
     decorate(asExecutor(createAnalyzeInvestmentTool(requireDefinition("analyzeInvestment")))),
     decorate(asExecutor(createOptimizeRouteTool(requireDefinition("optimizeRoute")))),
     decorate(asExecutor(createCalculateLandedCostTool(requireDefinition("calculateLandedCost")))),
+    decorate(asExecutor(createBacktestRulesTool(requireDefinition("backtestRules")))),
     decorate(asExecutor(createAssessClaimTool(requireDefinition("assessClaim")))),
     decorate(
       asExecutor(createScreenCandidatesTool(requireDefinition("screenCandidates"), { supervisor })),
     ),
+    decorate(asExecutor(createExplodeRecipeCostTool(requireDefinition("explodeRecipeCost")))),
     decorate(asExecutor(createSimulatePVPaybackTool(requireDefinition("simulatePVPayback")))),
     decorate(asExecutor(createCalculateNetSalaryTool(requireDefinition("calculateNetSalary")))),
     decorate(asExecutor(createProposeRepricingTool(requireDefinition("proposeRepricing")))),

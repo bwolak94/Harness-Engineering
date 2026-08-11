@@ -2,8 +2,12 @@ import type { HarnessEvent } from "@harness/contracts";
 import { initialWorkflowState, reduce } from "@harness/core";
 import type { WorkflowState } from "@harness/core";
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { HarnessSocket } from "../../../shared/transport/harness-socket.js";
 import type { ConnectionStatus } from "../../../shared/transport/harness-socket.js";
+
+// Session TTL: discard persisted history after 24 hours.
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 
 // ---------------------------------------------------------------------------
 // WorkflowStore — Zustand store for live workflow state (entities layer)
@@ -21,7 +25,8 @@ export interface WorkflowStore {
   workflowId: string | null;
   // Events from the current workflow only (resets on subscribe)
   events: HarnessEvent[];
-  // All events from all workflows since page load — drives the chat transcript
+  // All events from all workflows since page load — drives the chat transcript.
+  // Persisted to localStorage (key: harness:session:v1, TTL: 24 h).
   allEvents: HarnessEvent[];
   // Workflow state computed incrementally by the reducer
   state: WorkflowState | null;
@@ -33,66 +38,91 @@ export interface WorkflowStore {
   // Actions
   subscribe(workflowId: string): void;
   unsubscribe(): void;
+  /** Clears all state AND removes the persisted session from localStorage. */
   reset(): void;
 }
 
 // Single shared socket instance — one active workflow at a time.
 const socket = new HarnessSocket();
 
-export const useWorkflowStore = create<WorkflowStore>((set, get) => {
-  // Wire socket callbacks once (outside state) to avoid re-registering on every render.
-  socket.onEvent((event) => {
-    const { workflowId, state, events, allEvents } = get();
-    if (event.workflowId !== workflowId) return;
+// Wire socket callbacks once at module level so they are never duplicated.
+export const useWorkflowStore = create<WorkflowStore>()(
+  persist(
+    (set, get) => {
+      socket.onEvent((event) => {
+        const { workflowId, state, events, allEvents } = get();
+        if (event.workflowId !== workflowId) return;
 
-    const prevState = state ?? initialWorkflowState(event.workflowId);
-    const nextState = reduce(prevState, event);
+        const prevState = state ?? initialWorkflowState(event.workflowId);
+        const nextState = reduce(prevState, event);
 
-    set({ events: [...events, event], allEvents: [...allEvents, event], state: nextState });
-  });
-
-  socket.onStatus((status) => {
-    set({ status });
-  });
-
-  socket.onLagged(() => {
-    set({ lagged: true });
-  });
-
-  return {
-    workflowId: null,
-    events: [],
-    allEvents: [],
-    state: null,
-    status: "disconnected",
-    lagged: false,
-
-    subscribe(workflowId: string) {
-      set({
-        workflowId,
-        events: [],
-        // allEvents intentionally NOT cleared — preserves chat history across workflows
-        state: initialWorkflowState(workflowId),
-        lagged: false,
+        set({ events: [...events, event], allEvents: [...allEvents, event], state: nextState });
       });
-      socket.connect(workflowId, 0);
-    },
 
-    unsubscribe() {
-      socket.disconnect();
-      set({ status: "disconnected" });
-    },
+      socket.onStatus((status) => {
+        set({ status });
+      });
 
-    reset() {
-      socket.disconnect();
-      set({
+      socket.onLagged(() => {
+        set({ lagged: true });
+      });
+
+      return {
         workflowId: null,
         events: [],
         allEvents: [],
         state: null,
         status: "disconnected",
         lagged: false,
-      });
+
+        subscribe(workflowId: string) {
+          set({
+            workflowId,
+            events: [],
+            // allEvents intentionally NOT cleared — preserves chat history across workflows
+            state: initialWorkflowState(workflowId),
+            lagged: false,
+          });
+          socket.connect(workflowId, 0);
+        },
+
+        unsubscribe() {
+          socket.disconnect();
+          set({ status: "disconnected" });
+        },
+
+        reset() {
+          socket.disconnect();
+          set({
+            workflowId: null,
+            events: [],
+            allEvents: [],
+            state: null,
+            status: "disconnected",
+            lagged: false,
+          });
+        },
+      };
     },
-  };
-});
+    {
+      name: "harness:session:v1",
+      // Only persist allEvents — ephemeral fields reset to defaults on hydration.
+      partialize: (s) => ({ allEvents: s.allEvents }),
+      onRehydrateStorage: () => (rehydrated) => {
+        if (!rehydrated) return;
+        // TTL check: discard history persisted more than 24 hours ago.
+        const raw = localStorage.getItem("harness:session:v1");
+        if (!raw) return;
+        try {
+          const parsed = JSON.parse(raw) as { _at?: number };
+          if (parsed._at !== undefined && Date.now() - parsed._at > SESSION_TTL_MS) {
+            localStorage.removeItem("harness:session:v1");
+            rehydrated.allEvents = [];
+          }
+        } catch {
+          // malformed storage — silently discard
+        }
+      },
+    },
+  ),
+);

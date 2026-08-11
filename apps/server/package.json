@@ -14,13 +14,15 @@
     "harness:replay": "tsx src/cli/replay.ts"
   },
   "dependencies": {
-    "@harness/contracts": "workspace:*",
-    "@harness/core": "workspace:*",
+    "@harness/adapters-egress": "workspace:^",
+    "@harness/adapters-llm": "workspace:*",
     "@harness/adapters-memory": "workspace:*",
     "@harness/adapters-postgres": "workspace:*",
-    "@harness/adapters-llm": "workspace:*",
     "@harness/adapters-sandbox": "workspace:*",
+    "@harness/contracts": "workspace:*",
+    "@harness/core": "workspace:*",
     "@harness/observability": "workspace:*",
+    "@opentelemetry/api": "^1.9.0",
     "fastify": "^5.2.0",
     "pg": "^8.13.1",
     "ws": "^8.18.0",

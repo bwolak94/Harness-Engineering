@@ -1,22 +1,33 @@
 import { randomUUID } from "node:crypto";
 import type { Socket } from "node:net";
+import { EgressService } from "@harness/adapters-egress";
 import { VercelAiModelPort } from "@harness/adapters-llm";
+import { InMemoryRateLimiter, InMemoryToolRegistry } from "@harness/adapters-memory";
 import {
-  InMemoryEventLog,
-  InMemoryRateLimiter,
-  InMemoryStateStore,
-  InMemoryToolRegistry,
-} from "@harness/adapters-memory";
-import { RetentionJob, UsageRollupJob } from "@harness/adapters-postgres";
+  PostgresEventLog,
+  PostgresStateStore,
+  RetentionJob,
+  UsageRollupJob,
+  createDb,
+} from "@harness/adapters-postgres";
 import type { Env } from "@harness/contracts/env";
+import type { ModelContext, ModelPort } from "@harness/core";
+import { ok } from "@harness/core";
 import type { IdPort } from "@harness/core";
-import { WallClock } from "@harness/core";
+import { NoopBlobStorePort, NoopSecretPort, WallClock } from "@harness/core";
 import { createDefaultToolExecutors } from "@harness/core/tools";
+import {
+  TracingModelAdapter,
+  createHarnessMetrics,
+  withBudgetThreshold,
+  withTracing,
+} from "@harness/observability";
+import { trace } from "@opentelemetry/api";
 import Fastify, { type FastifyInstance } from "fastify";
-import { Pool } from "pg";
 import { registerAuthMiddleware } from "../http/auth-middleware.js";
 import { registerBillingRoutes } from "../http/billing-routes.js";
 import { registerLifecycleRoutes } from "../http/lifecycle-routes.js";
+import { registerMcpRoutes } from "../http/mcp-routes.js";
 import { registerObservabilityRoutes } from "../http/observability-routes.js";
 import { registerRateLimitMiddleware } from "../http/rate-limit-middleware.js";
 import { registerTenantRoutes } from "../http/tenant-routes.js";
@@ -48,19 +59,54 @@ export interface App {
   rollupJob: UsageRollupJob;
 }
 
+// ---------------------------------------------------------------------------
+// StubModelPort — deterministic text-only model for NODE_ENV=test.
+//
+// Used in E2E tests so CI does not require a real LLM API key.
+// Returns "4" so that assertions like toContainText("4") pass.
+// ---------------------------------------------------------------------------
+
+class StubModelPort implements ModelPort {
+  async generate(_ctx: ModelContext) {
+    return ok({
+      content: "4",
+      toolCalls: [] as const,
+      usage: { promptTokens: 10, completionTokens: 2, totalTokens: 12 },
+      finishReason: "stop" as const,
+    });
+  }
+}
+
 export function compose(env: Env): App {
+  // --- Observability — tracer and metrics bound to the global OTel SDK ---
+  const tracer = trace.getTracer("@harness/server", "0.0.0");
+  const harnessMetrics = createHarnessMetrics();
+
   // --- Ports ---
   const idPort: IdPort = new CryptoIdPort();
   const clock = new WallClock();
-  const model = new VercelAiModelPort({
-    baseUrl: env.LLM_BASE_URL,
-    apiKey: env.LLM_API_KEY,
-    model: env.LLM_MODEL,
-  });
+  // In test mode, use a stub that never calls the real LLM so E2E tests
+  // work without a valid API key.
+  const rawModel: ModelPort =
+    env.NODE_ENV === "test"
+      ? new StubModelPort()
+      : new VercelAiModelPort({
+          baseUrl: env.LLM_BASE_URL,
+          apiKey: env.LLM_API_KEY,
+          model: env.LLM_MODEL,
+        });
+  // Wrap the model port to emit gen_ai.chat spans and token/cost metrics.
+  const model = new TracingModelAdapter(rawModel, tracer, harnessMetrics);
 
-  // --- Storage (in-memory for T04; swap to Postgres adapters in T06) ---
-  const rawEventLog = new InMemoryEventLog();
-  const stateStore = new InMemoryStateStore();
+  // --- Egress — SSRF-safe HTTP client used by MCP tool calls ---
+  // NoopSecretPort: secrets are resolved lazily per-tenant at call time (T16).
+  // NoopBlobStorePort: large response claim-checks are a production concern.
+  const egress = new EgressService(new NoopSecretPort(), new NoopBlobStorePort());
+
+  // --- Storage — durable Postgres adapters backed by the shared pool ---
+  const { db, pool: dbPool } = createDb(env.DATABASE_URL);
+  const rawEventLog = new PostgresEventLog(db);
+  const stateStore = new PostgresStateStore(db);
 
   // --- Observer ---
   const bus = new EventBus();
@@ -81,7 +127,10 @@ export function compose(env: Env): App {
       toolRegistry,
       clock,
       idPort,
-      middleware: [],
+      // withBudgetThreshold emits budget.threshold.exceeded events at 80% of any limit.
+      // withTracing wraps each tool call in an OTel span (child of the workflow span).
+      // Order matters: budget threshold runs first so it fires before the tracing span closes.
+      middleware: [withBudgetThreshold(), withTracing(tracer, harnessMetrics)],
       livePublish: (event) => bus.publish(event),
     },
     eventLog,
@@ -99,10 +148,8 @@ export function compose(env: Env): App {
   // Rate limit after auth so we have tenantContext available.
   registerRateLimitMiddleware(fastify, rateLimiter, env.RATE_LIMIT_RPM);
   registerWorkflowRoutes(fastify, service);
-  // Tenant management and tool-definition routes (T15).
-  // `new Pool` is lazy — it does not connect until the first query, so this is
-  // safe even when running tests with in-memory adapters.
-  const dbPool = new Pool({ connectionString: env.DATABASE_URL });
+  registerMcpRoutes(fastify, egress, toolRegistry);
+  // Tenant management, observability, billing, and lifecycle routes share the pool.
   registerTenantRoutes(fastify, dbPool);
   registerObservabilityRoutes(fastify, dbPool);
   registerBillingRoutes(fastify, dbPool);

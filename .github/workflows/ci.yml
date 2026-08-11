@@ -44,5 +44,11 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Eval golden set
+        run: pnpm eval --json
+        # Blocks merge when any golden case fails or a snapshot drifts.
+        # Uses --json for CI-friendly output (no color codes, parseable exit code).
+
       - name: Build
         run: pnpm build
+
