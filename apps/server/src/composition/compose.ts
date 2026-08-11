@@ -2,7 +2,13 @@ import { randomUUID } from "node:crypto";
 import type { Socket } from "node:net";
 import { EgressService } from "@harness/adapters-egress";
 import { VercelAiModelPort } from "@harness/adapters-llm";
-import { InMemoryRateLimiter, InMemoryToolRegistry } from "@harness/adapters-memory";
+import {
+  DEFAULT_AGENTS,
+  DEFAULT_RULES,
+  InMemoryAgentRegistry,
+  InMemoryRateLimiter,
+  InMemoryToolRegistry,
+} from "@harness/adapters-memory";
 import {
   PostgresEventLog,
   PostgresStateStore,
@@ -10,11 +16,13 @@ import {
   UsageRollupJob,
   createDb,
 } from "@harness/adapters-postgres";
+import type { HarnessEvent } from "@harness/contracts";
 import type { Env } from "@harness/contracts/env";
 import type { ModelContext, ModelPort } from "@harness/core";
 import { ok } from "@harness/core";
 import type { IdPort } from "@harness/core";
 import { NoopBlobStorePort, NoopSecretPort, WallClock } from "@harness/core";
+import { EscalationClassifier, Router, RuleBasedClassifier } from "@harness/core";
 import { createDefaultToolExecutors } from "@harness/core/tools";
 import {
   TracingModelAdapter,
@@ -28,6 +36,7 @@ import { registerAuthMiddleware } from "../http/auth-middleware.js";
 import { registerBillingRoutes } from "../http/billing-routes.js";
 import { registerLifecycleRoutes } from "../http/lifecycle-routes.js";
 import { registerMcpRoutes } from "../http/mcp-routes.js";
+import { registerMultiAgentRoutes } from "../http/multi-agent-routes.js";
 import { registerObservabilityRoutes } from "../http/observability-routes.js";
 import { registerRateLimitMiddleware } from "../http/rate-limit-middleware.js";
 import { registerSandboxRoutes } from "../http/sandbox-routes.js";
@@ -36,6 +45,7 @@ import { registerWorkflowRoutes } from "../http/workflow-routes.js";
 import { CompositeEventLog } from "../service/composite-event-log.js";
 import { EventBus } from "../service/event-bus.js";
 import { HarnessService } from "../service/harness-service.js";
+import { MultiAgentService } from "../service/multi-agent-service.js";
 import { WsGateway } from "../ws/ws-gateway.js";
 
 // ---------------------------------------------------------------------------
@@ -56,6 +66,7 @@ export interface App {
   fastify: FastifyInstance;
   gateway: WsGateway;
   service: HarnessService;
+  multiAgentService: MultiAgentService;
   retentionJob: RetentionJob;
   rollupJob: UsageRollupJob;
 }
@@ -119,24 +130,41 @@ export function compose(env: Env): App {
     toolRegistry.register(executor);
   }
 
+  const runtimeDeps = {
+    model,
+    eventLog,
+    stateStore,
+    toolRegistry,
+    clock,
+    idPort,
+    // withBudgetThreshold emits budget.threshold.exceeded events at 80% of any limit.
+    // withTracing wraps each tool call in an OTel span (child of the workflow span).
+    // Order matters: budget threshold runs first so it fires before the tracing span closes.
+    middleware: [withBudgetThreshold(), withTracing(tracer, harnessMetrics)],
+    livePublish: (event: HarnessEvent) => bus.publish(event),
+  };
+
   // --- Facade ---
   const service = new HarnessService({
-    runtimeDeps: {
-      model,
-      eventLog,
-      stateStore,
-      toolRegistry,
-      clock,
-      idPort,
-      // withBudgetThreshold emits budget.threshold.exceeded events at 80% of any limit.
-      // withTracing wraps each tool call in an OTel span (child of the workflow span).
-      // Order matters: budget threshold runs first so it fires before the tracing span closes.
-      middleware: [withBudgetThreshold(), withTracing(tracer, harnessMetrics)],
-      livePublish: (event) => bus.publish(event),
-    },
+    runtimeDeps,
     eventLog,
     stateStore,
     idPort,
+  });
+
+  // --- Multi-agent router + service ---
+  const agentRegistry = new InMemoryAgentRegistry(DEFAULT_AGENTS);
+  const router = new Router(
+    [new RuleBasedClassifier(DEFAULT_RULES), new EscalationClassifier()],
+    agentRegistry,
+  );
+  const multiAgentService = new MultiAgentService({
+    runtimeDeps,
+    eventLog,
+    stateStore,
+    idPort,
+    router,
+    agentRegistry,
   });
 
   // --- Rate limiter (in-memory; swap to RedisRateLimiter in production) ---
@@ -149,6 +177,7 @@ export function compose(env: Env): App {
   // Rate limit after auth so we have tenantContext available.
   registerRateLimitMiddleware(fastify, rateLimiter, env.RATE_LIMIT_RPM);
   registerWorkflowRoutes(fastify, service);
+  registerMultiAgentRoutes(fastify, multiAgentService);
   registerMcpRoutes(fastify, egress, toolRegistry);
   registerSandboxRoutes(fastify, toolRegistry);
   // Tenant management, observability, billing, and lifecycle routes share the pool.
@@ -176,5 +205,5 @@ export function compose(env: Env): App {
     }
   });
 
-  return { fastify, gateway, service, retentionJob, rollupJob };
+  return { fastify, gateway, service, multiAgentService, retentionJob, rollupJob };
 }

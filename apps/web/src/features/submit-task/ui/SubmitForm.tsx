@@ -13,6 +13,7 @@ export function SubmitForm({ onSubmitted }: SubmitFormProps) {
   const [saveName, setSaveName] = useState("");
   const [showSaveInput, setShowSaveInput] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [multiAgent, setMultiAgent] = useState(false);
 
   const { mutate, isPending, error } = useSubmitTask();
   const { templates, save: saveTemplate, remove: removeTemplate } = useTemplateStore();
@@ -21,7 +22,7 @@ export function SubmitForm({ onSubmitted }: SubmitFormProps) {
     e.preventDefault();
     if (!goal.trim()) return;
     mutate(
-      { goal: goal.trim() },
+      { goal: goal.trim(), multiAgent },
       {
         onSuccess: ({ workflowId }) => {
           setGoal("");
@@ -106,6 +107,31 @@ export function SubmitForm({ onSubmitted }: SubmitFormProps) {
           "transition-colors",
         ].join(" ")}
       />
+
+      {/* Multi-agent toggle */}
+      <label className="flex cursor-pointer items-center gap-2 self-start">
+        <div className="relative">
+          <input
+            type="checkbox"
+            className="sr-only"
+            checked={multiAgent}
+            onChange={(e) => setMultiAgent(e.target.checked)}
+          />
+          <div
+            className={cn(
+              "h-4 w-7 rounded-full transition-colors",
+              multiAgent ? "bg-accent" : "bg-[#3f3f46]",
+            )}
+          />
+          <div
+            className={cn(
+              "absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform",
+              multiAgent ? "translate-x-3.5" : "translate-x-0.5",
+            )}
+          />
+        </div>
+        <span className="text-[11px] text-[#71717a]">Multi-agent routing</span>
+      </label>
 
       {error && (
         <p className="text-xs text-ev-error">
