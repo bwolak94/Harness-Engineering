@@ -2,7 +2,14 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { cn } from "../shared/lib/cn.js";
 
-export type AppTab = "inspector" | "history" | "tutorial" | "analytics" | "sandbox" | "registry";
+export type AppTab =
+  | "inspector"
+  | "history"
+  | "tutorial"
+  | "analytics"
+  | "sandbox"
+  | "registry"
+  | "flows";
 
 const TABS: { id: AppTab; label: string }[] = [
   { id: "inspector", label: "Inspector" },
@@ -11,6 +18,7 @@ const TABS: { id: AppTab; label: string }[] = [
   { id: "analytics", label: "Analytics" },
   { id: "sandbox", label: "Sandbox" },
   { id: "registry", label: "Registry" },
+  { id: "flows", label: "Flows" },
 ];
 
 interface AppShellProps {

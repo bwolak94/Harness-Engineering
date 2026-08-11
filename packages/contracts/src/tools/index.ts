@@ -32,6 +32,7 @@ import {
   ProposeRepricingOutputSchema,
 } from "./n10-propose-repricing.js";
 import { ApplyRepricingInputSchema, ApplyRepricingOutputSchema } from "./n11-apply-repricing.js";
+import { SearchHotelsInputSchema, SearchHotelsOutputSchema } from "./n12-search-hotels.js";
 
 // Re-export individual schemas for direct use
 export * from "./n1-analyze-investment.js";
@@ -45,6 +46,7 @@ export * from "./n8-simulate-pv-payback.js";
 export * from "./n9-calculate-net-salary.js";
 export * from "./n10-propose-repricing.js";
 export * from "./n11-apply-repricing.js";
+export * from "./n12-search-hotels.js";
 
 // ---------------------------------------------------------------------------
 // Tool registry — all definitions in one place.
@@ -316,6 +318,26 @@ export const TOOL_REGISTRY: readonly ToolDefinition[] = [
     exampleInput: {
       changes: [{ sku: "LAPTOP-001", newPrice: 1149 }],
       idempotencyKey: "repricing-2026-08-11-batch-1",
+    },
+  },
+  {
+    name: "searchHotels",
+    description:
+      "Finds hotels, hostels, and guest houses near a location using OpenStreetMap data " +
+      "(Nominatim geocoding + Overpass API). Returns hotel listings with distances, star ratings, " +
+      "amenities, and nearby public transit stops (bus, tram, subway) within 500 m of each property. " +
+      "No API key required. Coverage depends on OSM community contributions — best in Europe.",
+    dangerous: false,
+    idempotent: false,
+    costHint: "cheap",
+    inputSchema: toJsonSchema(SearchHotelsInputSchema),
+    outputSchema: toJsonSchema(SearchHotelsOutputSchema),
+    exampleInput: {
+      location: "Kraków Old Town, Poland",
+      radiusKm: 1,
+      maxResults: 8,
+      checkIn: "2026-09-15",
+      checkOut: "2026-09-18",
     },
   },
   {

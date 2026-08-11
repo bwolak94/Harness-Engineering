@@ -62,10 +62,20 @@ export const COMMERCIAL_ANALYST: AgentSpec = {
   toolNames: ["calculateLandedCost", "proposeRepricing"],
 };
 
+export const HOSPITALITY_ANALYST: AgentSpec = {
+  name: "hospitality-analyst",
+  description:
+    "Finds hotels, hostels, and guest houses near a given location using OpenStreetMap data. " +
+    "Analyses each property's amenities, star rating, public transit accessibility, and " +
+    "surrounding neighbourhood to produce a structured comparison with pros/cons and a recommendation.",
+  toolNames: ["searchHotels"],
+};
+
 export const DEFAULT_AGENTS: readonly AgentSpec[] = [
   FINANCIAL_ANALYST,
   OPERATIONAL_ANALYST,
   COMMERCIAL_ANALYST,
+  HOSPITALITY_ANALYST,
 ];
 
 // ---------------------------------------------------------------------------
@@ -77,6 +87,26 @@ export const DEFAULT_AGENTS: readonly AgentSpec[] = [
 // ---------------------------------------------------------------------------
 
 export const DEFAULT_RULES: ReadonlyMap<string, readonly string[]> = new Map([
+  [
+    "hospitality-analyst",
+    [
+      "hotel",
+      "hotels",
+      "hostel",
+      "motel",
+      "accommodation",
+      "stay",
+      "lodging",
+      "bed and breakfast",
+      "guest house",
+      "where to sleep",
+      "where to stay",
+      "book a room",
+      "nearby hotels",
+      "hotels near",
+      "find hotels",
+    ],
+  ],
   [
     "financial-analyst",
     [
