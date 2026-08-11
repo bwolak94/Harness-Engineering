@@ -11,6 +11,8 @@ import {
   createDb,
 } from "@harness/adapters-postgres";
 import type { Env } from "@harness/contracts/env";
+import type { ModelContext, ModelPort } from "@harness/core";
+import { ok } from "@harness/core";
 import type { IdPort } from "@harness/core";
 import { NoopBlobStorePort, NoopSecretPort, WallClock } from "@harness/core";
 import { createDefaultToolExecutors } from "@harness/core/tools";
@@ -57,6 +59,24 @@ export interface App {
   rollupJob: UsageRollupJob;
 }
 
+// ---------------------------------------------------------------------------
+// StubModelPort — deterministic text-only model for NODE_ENV=test.
+//
+// Used in E2E tests so CI does not require a real LLM API key.
+// Returns "4" so that assertions like toContainText("4") pass.
+// ---------------------------------------------------------------------------
+
+class StubModelPort implements ModelPort {
+  async generate(_ctx: ModelContext) {
+    return ok({
+      content: "4",
+      toolCalls: [] as const,
+      usage: { promptTokens: 10, completionTokens: 2, totalTokens: 12 },
+      finishReason: "stop" as const,
+    });
+  }
+}
+
 export function compose(env: Env): App {
   // --- Observability — tracer and metrics bound to the global OTel SDK ---
   const tracer = trace.getTracer("@harness/server", "0.0.0");
@@ -65,11 +85,16 @@ export function compose(env: Env): App {
   // --- Ports ---
   const idPort: IdPort = new CryptoIdPort();
   const clock = new WallClock();
-  const rawModel = new VercelAiModelPort({
-    baseUrl: env.LLM_BASE_URL,
-    apiKey: env.LLM_API_KEY,
-    model: env.LLM_MODEL,
-  });
+  // In test mode, use a stub that never calls the real LLM so E2E tests
+  // work without a valid API key.
+  const rawModel: ModelPort =
+    env.NODE_ENV === "test"
+      ? new StubModelPort()
+      : new VercelAiModelPort({
+          baseUrl: env.LLM_BASE_URL,
+          apiKey: env.LLM_API_KEY,
+          model: env.LLM_MODEL,
+        });
   // Wrap the model port to emit gen_ai.chat spans and token/cost metrics.
   const model = new TracingModelAdapter(rawModel, tracer, harnessMetrics);
 

@@ -96,10 +96,7 @@ test("budget exceeded → halted badge appears", async ({ page }) => {
   const apiBase = process.env.PLAYWRIGHT_API_URL ?? "http://localhost:3000";
 
   const res = await page.request.post(`${apiBase}/workflows`, {
-    headers: {
-      "content-type": "application/json",
-      authorization: "Bearer dev-token",
-    },
+    headers: { "content-type": "application/json" },
     data: {
       goal: "Call the analyzeInvestment tool three times — each with a different property type.",
       budget: { maxSteps: 1, maxTokens: 5000, maxWallClockMs: 30000, maxCostUsd: 1 },
