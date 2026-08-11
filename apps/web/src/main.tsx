@@ -7,6 +7,7 @@ import { useWorkflowStore } from "./entities/workflow/index.js";
 import { AnalyticsPage } from "./pages/analytics/index.js";
 import { HistoryPage } from "./pages/history/index.js";
 import { InspectorPage } from "./pages/inspector/index.js";
+import { SandboxPage } from "./pages/sandbox/index.js";
 import { TutorialPage } from "./pages/tutorial/index.js";
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
           );
         }
         if (tab === "analytics") return <AnalyticsPage />;
+        if (tab === "sandbox") return <SandboxPage />;
         return null;
       }}
     </AppShell>

@@ -6,6 +6,7 @@ import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import { SubmitForm } from "../../../features/submit-task/index.js";
 import { cn } from "../../../shared/lib/cn.js";
+import { downloadMarkdown, toMarkdown } from "../../../shared/lib/to-markdown.js";
 import { Badge } from "../../../shared/ui/badge.js";
 import { ApprovalPanel } from "../../ApprovalPanel/index.js";
 import { BudgetGauge, extractBudgetLimits } from "../../BudgetGauge/ui/BudgetGauge.js";
@@ -266,14 +267,28 @@ export function ChatPane({
         <div className="flex items-center gap-2">
           {state && <StatusBadge status={state.status} />}
           {events.length > 0 && (
-            <button
-              type="button"
-              onClick={onClearHistory}
-              className="text-[10px] font-mono text-[#3f3f46] hover:text-[#a1a1aa] transition-colors"
-              title="Clear conversation history"
-            >
-              clear
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  const md = toMarkdown(events);
+                  const slug = new Date().toISOString().slice(0, 10);
+                  downloadMarkdown(md, `harness-${slug}.md`);
+                }}
+                className="text-[10px] font-mono text-[#3f3f46] hover:text-[#a1a1aa] transition-colors"
+                title="Export transcript as Markdown"
+              >
+                export
+              </button>
+              <button
+                type="button"
+                onClick={onClearHistory}
+                className="text-[10px] font-mono text-[#3f3f46] hover:text-[#a1a1aa] transition-colors"
+                title="Clear conversation history"
+              >
+                clear
+              </button>
+            </>
           )}
         </div>
       </div>

@@ -30,6 +30,7 @@ import { registerLifecycleRoutes } from "../http/lifecycle-routes.js";
 import { registerMcpRoutes } from "../http/mcp-routes.js";
 import { registerObservabilityRoutes } from "../http/observability-routes.js";
 import { registerRateLimitMiddleware } from "../http/rate-limit-middleware.js";
+import { registerSandboxRoutes } from "../http/sandbox-routes.js";
 import { registerTenantRoutes } from "../http/tenant-routes.js";
 import { registerWorkflowRoutes } from "../http/workflow-routes.js";
 import { CompositeEventLog } from "../service/composite-event-log.js";
@@ -149,6 +150,7 @@ export function compose(env: Env): App {
   registerRateLimitMiddleware(fastify, rateLimiter, env.RATE_LIMIT_RPM);
   registerWorkflowRoutes(fastify, service);
   registerMcpRoutes(fastify, egress, toolRegistry);
+  registerSandboxRoutes(fastify, toolRegistry);
   // Tenant management, observability, billing, and lifecycle routes share the pool.
   registerTenantRoutes(fastify, dbPool);
   registerObservabilityRoutes(fastify, dbPool);

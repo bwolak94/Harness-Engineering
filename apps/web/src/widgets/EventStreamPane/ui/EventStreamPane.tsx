@@ -1,4 +1,5 @@
 import type { HarnessEvent } from "@harness/contracts";
+import { initialWorkflowState, rehydrate } from "@harness/core";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { forwardRef, useRef, useState } from "react";
 import { cn } from "../../../shared/lib/cn.js";
@@ -99,12 +100,25 @@ interface EventStreamPaneProps {
 export function EventStreamPane({ events, status, lagged, className }: EventStreamPaneProps) {
   const [filter, setFilter] = useState<string>(ALL_TYPES);
   const [showWaterfall, setShowWaterfall] = useState(true);
+  const [replayMode, setReplayMode] = useState(false);
+  const [replaySeq, setReplaySeq] = useState(0);
   const parentRef = useRef<HTMLDivElement>(null);
+
+  const maxSeq = events.reduce((m, e) => Math.max(m, e.seq), 0);
+  const replayState = replayMode
+    ? (() => {
+        const wid = events[0]?.workflowId ?? "";
+        const slice = events.filter((e) => e.seq <= replaySeq);
+        return rehydrate(wid, slice, initialWorkflowState(wid));
+      })()
+    : null;
+
+  const visibleEvents = replayMode ? events.filter((e) => e.seq <= replaySeq) : events;
 
   const filtered =
     filter === ALL_TYPES
-      ? events.filter((e) => !STREAMING_TYPES.has(e.type))
-      : events.filter((e) => e.type === filter);
+      ? visibleEvents.filter((e) => !STREAMING_TYPES.has(e.type))
+      : visibleEvents.filter((e) => e.type === filter);
 
   // TanStack Virtual — only DOM nodes for visible rows.
   // measureElement enables dynamic row heights so expanded rows don't overlap.
@@ -132,9 +146,55 @@ export function EventStreamPane({ events, status, lagged, className }: EventStre
               lagged — some events may be missing
             </span>
           )}
+          {events.length > 1 && (
+            <button
+              type="button"
+              onClick={() => {
+                const next = !replayMode;
+                setReplayMode(next);
+                if (next) setReplaySeq(maxSeq);
+              }}
+              className={cn(
+                "rounded px-2 py-0.5 text-xs font-mono transition-colors",
+                replayMode ? "bg-accent/20 text-accent" : "text-[#52525b] hover:text-[#a1a1aa]",
+              )}
+            >
+              {replayMode ? "exit replay" : "replay"}
+            </button>
+          )}
           <StatusDot status={status} />
         </div>
       </div>
+
+      {/* Replay slider */}
+      {replayMode && (
+        <div className="shrink-0 border-b border-border bg-surface-2 px-3 py-2">
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-[#52525b]">
+              Replay
+            </span>
+            <span className="font-mono text-[10px] text-[#52525b]">
+              seq {replaySeq} of {maxSeq}
+              {replayState && ` · ${replayState.status}`}
+            </span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={maxSeq}
+            value={replaySeq}
+            onChange={(e) => setReplaySeq(Number(e.target.value))}
+            className="w-full accent-[#6366f1]"
+          />
+          {replayState && (
+            <div className="mt-1.5 flex gap-3 font-mono text-[10px] text-[#3f3f46]">
+              <span>steps: {replayState.budget.stepsCompleted}</span>
+              <span>tokens: {replayState.budget.tokensUsed.toLocaleString()}</span>
+              <span>cost: ${replayState.budget.costUsd.toFixed(4)}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Waterfall timeline — collapsible */}
       {events.some((e) => e.type === "tool.called") && (
