@@ -1,5 +1,4 @@
 import type { Budget, HarnessEvent } from "@harness/contracts";
-import type { WorkflowState } from "../domain/workflow-state.js";
 import type { AgentRegistryPort } from "../ports/agent-registry.port.js";
 import type { ClockPort } from "../ports/clock.port.js";
 import type { EventLogPort } from "../ports/event-log.port.js";
@@ -145,6 +144,14 @@ export class FlowRunner {
     parentWorkflowId: string,
     signal?: AbortSignal,
   ): Promise<FlowRunResult> {
+    // Divide budget equally so parallel agents can't collectively exceed the caller's limits.
+    const stepCount = Math.max(1, spec.steps.length);
+    const stepBudget: Budget = {
+      ...budget,
+      maxTokens: Math.floor(budget.maxTokens / stepCount),
+      maxCostUsd: budget.maxCostUsd / stepCount,
+    };
+
     const tasks: SubagentTask<FlowStepOutcome>[] = spec.steps.map((step, i) => {
       const workflowId = this.deps.idPort.newId();
       const goal = step.goalTemplate.replace(/\{\{goal\}\}/g, userGoal);
@@ -158,9 +165,21 @@ export class FlowRunner {
             const state = await runtime.run({
               id: workflowId,
               goal,
-              budget,
+              budget: stepBudget,
               metadata: { flowId: spec.id, parentWorkflowId, stepIndex: i },
             });
+            // HarnessRuntime.run() returns a state rather than throwing on agent failures.
+            // Check the terminal status explicitly so a failed/halted agent is not reported
+            // as a successful step.
+            if (state.status === "failed" || state.status === "halted") {
+              return {
+                stepId,
+                agentName: step.agentName,
+                workflowId,
+                status: "failed",
+                reason: state.error ?? `Agent ended with status "${state.status}"`,
+              };
+            }
             const outcome: FlowStepOutcome = {
               stepId,
               agentName: step.agentName,
@@ -250,12 +269,26 @@ export class FlowRunner {
 
       const runtime = this.buildRuntime(step.agentName);
       try {
-        const state = (await runtime.run({
+        const state = await runtime.run({
           id: workflowId,
           goal,
           budget: stepBudget,
           metadata: { flowId: spec.id, parentWorkflowId, stepIndex: i },
-        })) as WorkflowState;
+        });
+
+        // HarnessRuntime.run() returns a state rather than throwing on agent failures.
+        // Treat failed/halted terminal states as step failures so downstream steps
+        // don't receive stale carry-forward context from a broken agent.
+        if (state.status === "failed" || state.status === "halted") {
+          steps.push({
+            stepId: `${step.agentName}:${i}`,
+            agentName: step.agentName,
+            workflowId,
+            status: "failed",
+            reason: state.error ?? `Agent ended with status "${state.status}"`,
+          });
+          break;
+        }
 
         const resultText = typeof state.result === "string" ? state.result : undefined;
         carryForward = resultText ?? "";
