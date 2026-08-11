@@ -45,10 +45,86 @@ jobs:
         run: pnpm test
 
       - name: Eval golden set
-        run: pnpm eval --json
+        run: pnpm eval
+        # Runs in human-readable mode; writes eval-report.json + eval-report.md to
+        # packages/evals/eval-output/ (default outputDir relative to package CWD).
         # Blocks merge when any golden case fails or a snapshot drifts.
-        # Uses --json for CI-friendly output (no color codes, parseable exit code).
+
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report-node${{ matrix.node }}
+          path: packages/evals/eval-output/eval-report.json
+          retention-days: 30
 
       - name: Build
         run: pnpm build
 
+  eval-pr-comment:
+    name: Post eval summary to PR
+    runs-on: ubuntu-latest
+    needs: ci
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Download eval report (Node 22)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: eval-report-node22
+          path: eval-artifacts
+
+      - name: Post PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const path = "eval-artifacts/eval-report.json";
+            if (!fs.existsSync(path)) {
+              console.log("No eval report found, skipping comment.");
+              return;
+            }
+            const report = JSON.parse(fs.readFileSync(path, "utf8"));
+            const rate = (report.successRate * 100).toFixed(1);
+            const icon = report.failed === 0 ? "✅" : "⚠️";
+            const body = [
+              `## ${icon} Eval Report — \`${report.branch ?? context.payload.pull_request.head.ref}\``,
+              "",
+              `| Metric | Value |`,
+              `| --- | --- |`,
+              `| Cases | ${report.totalCases} |`,
+              `| Passed | ${report.passed} |`,
+              `| Failed | ${report.failed} |`,
+              `| Success rate | ${rate}% |`,
+              `| Avg steps | ${report.avgSteps ?? "—"} |`,
+              `| p95 duration | ${report.p95DurationMs != null ? report.p95DurationMs + " ms" : "—"} |`,
+              `| Run at | ${report.runAt} |`,
+              `| Commit | \`${report.commit ?? context.sha.slice(0, 7)}\` |`,
+            ].join("\n");
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+            });
+            const existing = comments.find(
+              (c) => c.user.login === "github-actions[bot]" && c.body.startsWith("## ")  && c.body.includes("Eval Report")
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body,
+              });
+            }

@@ -27,11 +27,25 @@ const DiscoverBodySchema = z.object({
   headers: z.record(z.string(), z.string()).optional(),
 });
 
+interface RegisteredServer {
+  url: string;
+  tenantId: string;
+  toolNames: string[];
+  registeredAt: string;
+}
+
 export function registerMcpRoutes(
   fastify: FastifyInstance,
   egress: EgressPort,
   toolRegistry: ToolRegistryPort,
 ): void {
+  // In-process list of servers registered in this session.
+  const registeredServers: RegisteredServer[] = [];
+
+  // GET /mcp/servers — list servers registered in this process lifetime
+  fastify.get("/mcp/servers", (_req, reply) => {
+    reply.send({ servers: registeredServers });
+  });
   // POST /mcp/discover — return tool definitions from a given MCP server
   fastify.post("/mcp/discover", async (req, reply) => {
     const parsed = DiscoverBodySchema.safeParse(req.body);
@@ -91,7 +105,9 @@ export function registerMcpRoutes(
           },
         });
       }
-      reply.status(200).send({ registered: tools.map((t) => t.definition.name) });
+      const toolNames = tools.map((t) => t.definition.name);
+      registeredServers.push({ url, tenantId, toolNames, registeredAt: new Date().toISOString() });
+      reply.status(200).send({ registered: toolNames });
     } catch (err) {
       return badRequest(reply, req, err instanceof Error ? err.message : String(err));
     }
