@@ -14,7 +14,7 @@ export function InspectorPage() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-canvas text-white">
+    <div className="flex h-full w-full overflow-hidden bg-canvas text-white">
       {/* Chat panel — 40% */}
       <ChatPane
         state={state}
