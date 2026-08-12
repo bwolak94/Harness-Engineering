@@ -22,6 +22,7 @@ import { createSimulatePVPaybackTool } from "./n8-simulate-pv-payback.js";
 import { createCalculateNetSalaryTool } from "./n9-calculate-net-salary.js";
 import { createProposeRepricingTool } from "./n10-propose-repricing.js";
 import { createSearchHotelsTool } from "./n12-search-hotels.js";
+import { createMarkowitzPortfolioTool } from "./n16-markowitz-portfolio.js";
 import { createRunCodeTool } from "./run-code.js";
 
 // Re-export individual tool factories so callers can build custom variants.
@@ -39,6 +40,7 @@ export { createProposeRepricingTool } from "./n10-propose-repricing.js";
 export { createApplyRepricingTool } from "./n11-apply-repricing.js";
 export type { ApplyRepricingDeps } from "./n11-apply-repricing.js";
 export { createSearchHotelsTool } from "./n12-search-hotels.js";
+export { createMarkowitzPortfolioTool } from "./n16-markowitz-portfolio.js";
 export { createRunCodeTool } from "./run-code.js";
 export type { RunCodeDeps } from "./run-code.js";
 
@@ -132,6 +134,7 @@ export function createDefaultToolExecutors(): ToolExecutor[] {
     decorate(asExecutor(createCalculateNetSalaryTool(requireDefinition("calculateNetSalary")))),
     decorate(asExecutor(createProposeRepricingTool(requireDefinition("proposeRepricing")))),
     decorate(asExecutor(createSearchHotelsTool(requireDefinition("searchHotels")))),
+    decorate(asExecutor(createMarkowitzPortfolioTool(requireDefinition("markowitzPortfolio")))),
     // runCode uses NoopSandbox by default — returns a helpful "not configured" error.
     // Override at composition root with a real SandboxPort adapter for actual execution.
     decorate(

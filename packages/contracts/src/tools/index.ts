@@ -33,6 +33,10 @@ import {
 } from "./n10-propose-repricing.js";
 import { ApplyRepricingInputSchema, ApplyRepricingOutputSchema } from "./n11-apply-repricing.js";
 import { SearchHotelsInputSchema, SearchHotelsOutputSchema } from "./n12-search-hotels.js";
+import {
+  MarkowitzPortfolioInputSchema,
+  MarkowitzPortfolioOutputSchema,
+} from "./n16-markowitz-portfolio.js";
 
 // Re-export individual schemas for direct use
 export * from "./n1-analyze-investment.js";
@@ -47,6 +51,7 @@ export * from "./n9-calculate-net-salary.js";
 export * from "./n10-propose-repricing.js";
 export * from "./n11-apply-repricing.js";
 export * from "./n12-search-hotels.js";
+export * from "./n16-markowitz-portfolio.js";
 
 // ---------------------------------------------------------------------------
 // Tool registry — all definitions in one place.
@@ -338,6 +343,34 @@ export const TOOL_REGISTRY: readonly ToolDefinition[] = [
       maxResults: 8,
       checkIn: "2026-09-15",
       checkOut: "2026-09-18",
+    },
+  },
+  {
+    name: "markowitzPortfolio",
+    description:
+      "Computes the optimal Markowitz mean-variance portfolio for a given asset universe. " +
+      "Returns portfolio weights, expected return, volatility, Sharpe ratio, and 21 efficient " +
+      "frontier points for risk–return charting. Supports long-only and unconstrained (short-selling) modes. " +
+      "When targetVolatility is provided, returns the minimum-variance portfolio at that risk level; " +
+      "otherwise returns the maximum Sharpe ratio (tangency) portfolio.",
+    dangerous: false,
+    idempotent: true,
+    costHint: "cheap",
+    inputSchema: toJsonSchema(MarkowitzPortfolioInputSchema),
+    outputSchema: toJsonSchema(MarkowitzPortfolioOutputSchema),
+    exampleInput: {
+      assets: [
+        { name: "SPY", expectedReturn: 0.1 },
+        { name: "BND", expectedReturn: 0.04 },
+        { name: "GLD", expectedReturn: 0.06 },
+      ],
+      covarianceMatrix: [
+        [0.04, 0.002, 0.006],
+        [0.002, 0.0009, 0.0005],
+        [0.006, 0.0005, 0.0144],
+      ],
+      riskFreeRate: 0.05,
+      allowShortSelling: false,
     },
   },
   {
