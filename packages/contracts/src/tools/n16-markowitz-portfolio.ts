@@ -12,7 +12,9 @@ export const MarkowitzPortfolioInputSchema = z.object({
     .array(MarkowitzAssetSchema)
     .min(2)
     .max(20)
-    .describe("Assets to include in the portfolio. Order must match covarianceMatrix rows/columns."),
+    .describe(
+      "Assets to include in the portfolio. Order must match covarianceMatrix rows/columns.",
+    ),
   covarianceMatrix: z
     .array(z.array(z.number()))
     .describe(

@@ -37,8 +37,8 @@ const tool = createMarkowitzPortfolioTool(DEF);
 
 const TWO_ASSET: MarkowitzPortfolioInput = {
   assets: [
-    { name: "A", expectedReturn: 0.10 },
-    { name: "B", expectedReturn: 0.20 },
+    { name: "A", expectedReturn: 0.1 },
+    { name: "B", expectedReturn: 0.2 },
   ],
   covarianceMatrix: [
     [0.04, 0.018],
@@ -61,9 +61,9 @@ const THREE_ASSET: MarkowitzPortfolioInput = {
     { name: "Gold", expectedReturn: 0.07 },
   ],
   covarianceMatrix: [
-    [0.0400, 0.0020, 0.0060],
-    [0.0020, 0.0009, 0.0005],
-    [0.0060, 0.0005, 0.0144],
+    [0.04, 0.002, 0.006],
+    [0.002, 0.0009, 0.0005],
+    [0.006, 0.0005, 0.0144],
   ],
   riskFreeRate: 0.02,
   allowShortSelling: false,
@@ -158,7 +158,7 @@ describe("markowitzPortfolio — Sharpe maximization", () => {
   it("optimal Sharpe ≥ equal-weight Sharpe (long-only)", async () => {
     const out = await tool.execute(TWO_ASSET);
     // Equal-weight portfolio for comparison
-    const eqReturn = 0.5 * 0.10 + 0.5 * 0.20; // 0.15
+    const eqReturn = 0.5 * 0.1 + 0.5 * 0.2; // 0.15
     const eqVar = 0.25 * 0.04 + 2 * 0.25 * 0.018 + 0.25 * 0.09; // 0.0415
     const eqStdDev = Math.sqrt(eqVar); // ≈ 0.2037
     const eqSharpe = (eqReturn - 0.05) / eqStdDev; // ≈ 0.491
@@ -175,14 +175,14 @@ describe("markowitzPortfolio — Sharpe maximization", () => {
   it("unconstrained tangency weights match analytical values (2-asset)", async () => {
     // Analytical: w_A ≈ 0.261, w_B ≈ 0.739 (computed from Σ^{-1}·(μ−rf·1)).
     const out = await tool.execute(TWO_ASSET_UNCONSTRAINED);
-    expect(out.weights["A"]).toBeCloseTo(0.261, 1);
-    expect(out.weights["B"]).toBeCloseTo(0.739, 1);
+    expect(out.weights.A).toBeCloseTo(0.261, 1);
+    expect(out.weights.B).toBeCloseTo(0.739, 1);
   });
 
   it("higher-return asset receives greater weight in tangency portfolio", async () => {
     const out = await tool.execute(TWO_ASSET);
     // Asset B (20% return) should dominate in a max-Sharpe portfolio.
-    expect((out.weights["B"] ?? 0)).toBeGreaterThan((out.weights["A"] ?? 0));
+    expect(out.weights.B ?? 0).toBeGreaterThan(out.weights.A ?? 0);
   });
 
   it("portfolioReturn = w^T μ (consistency check)", async () => {
@@ -212,14 +212,16 @@ describe("markowitzPortfolio — minimum-variance properties", () => {
     expect(first).toBeDefined();
     // Its volatility must be ≤ that of every other frontier point.
     for (const pt of out.efficientFrontierPoints) {
-      expect((first?.volatility ?? Infinity)).toBeLessThanOrEqual(pt.volatility + 1e-6);
+      expect(first?.volatility ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(
+        pt.volatility + 1e-6,
+      );
     }
   });
 
   it("global min-variance volatility < equal-weight volatility", async () => {
     const out = await tool.execute(TWO_ASSET);
     const eqVol = Math.sqrt(0.25 * 0.04 + 2 * 0.25 * 0.018 + 0.25 * 0.09);
-    const minVarVol = out.efficientFrontierPoints[0]?.volatility ?? Infinity;
+    const minVarVol = out.efficientFrontierPoints[0]?.volatility ?? Number.POSITIVE_INFINITY;
     expect(minVarVol).toBeLessThan(eqVol);
   });
 
@@ -247,7 +249,7 @@ describe("markowitzPortfolio — targetVolatility", () => {
   it("target below min-var: returns min-variance portfolio", async () => {
     // Min-var vol ≈ 0.187; targeting 0.05 is below that.
     const out = await tool.execute({ ...TWO_ASSET, targetVolatility: 0.05 });
-    const minVarOut = await tool.execute(TWO_ASSET); // tangency, but frontier[0] is min-var
+    const _minVarOut = await tool.execute(TWO_ASSET); // tangency, but frontier[0] is min-var
     const minVarVol = out.efficientFrontierPoints[0]?.volatility ?? 0;
     // The result should be close to the min-variance portfolio's volatility.
     expect(out.portfolioVolatility).toBeCloseTo(minVarVol, 2);
@@ -255,11 +257,11 @@ describe("markowitzPortfolio — targetVolatility", () => {
 
   it("target above max-single-asset vol: returns max-return portfolio", async () => {
     // Max single-asset (B) vol = sqrt(0.09) = 0.30; targeting 0.60 exceeds it.
-    const out = await tool.execute({ ...TWO_ASSET, targetVolatility: 0.60 });
+    const out = await tool.execute({ ...TWO_ASSET, targetVolatility: 0.6 });
     // Max-return portfolio is 100% in asset B → vol = 0.30.
-    expect(out.portfolioVolatility).toBeCloseTo(0.30, 2);
-    expect(out.weights["B"]).toBeCloseTo(1, 1);
-    expect(out.weights["A"]).toBeCloseTo(0, 1);
+    expect(out.portfolioVolatility).toBeCloseTo(0.3, 2);
+    expect(out.weights.B).toBeCloseTo(1, 1);
+    expect(out.weights.A).toBeCloseTo(0, 1);
   });
 
   it("weights sum to 1 in targetVolatility mode", async () => {
@@ -284,7 +286,8 @@ describe("markowitzPortfolio — efficient frontier", () => {
     const out = await tool.execute(THREE_ASSET);
     const returns = out.efficientFrontierPoints.map((p) => p.expectedReturn);
     const maxReturn = Math.max(...returns);
-    const lastReturn = out.efficientFrontierPoints.at(-1)?.expectedReturn ?? -Infinity;
+    const lastReturn =
+      out.efficientFrontierPoints.at(-1)?.expectedReturn ?? Number.NEGATIVE_INFINITY;
     expect(lastReturn).toBeCloseTo(maxReturn, 4);
   });
 
@@ -321,7 +324,7 @@ describe("markowitzPortfolio — validation", () => {
     const bad: MarkowitzPortfolioInput = {
       ...TWO_ASSET,
       covarianceMatrix: [
-        [0.04, 0.018, 0],   // 3 columns instead of 2
+        [0.04, 0.018, 0], // 3 columns instead of 2
         [0.018, 0.09, 0],
       ],
     };
@@ -332,7 +335,7 @@ describe("markowitzPortfolio — validation", () => {
     const bad: MarkowitzPortfolioInput = {
       ...TWO_ASSET,
       covarianceMatrix: [
-        [0, 0.018],   // asset A has zero variance
+        [0, 0.018], // asset A has zero variance
         [0.018, 0.09],
       ],
     };
@@ -344,7 +347,7 @@ describe("markowitzPortfolio — validation", () => {
       ...TWO_ASSET,
       covarianceMatrix: [
         [0.04, 0.018],
-        [0.030, 0.09],  // cov[1][0] ≠ cov[0][1]
+        [0.03, 0.09], // cov[1][0] ≠ cov[0][1]
       ],
     };
     await expect(tool.execute(bad)).rejects.toThrow(/symmetric/);
@@ -384,7 +387,7 @@ describe("markowitzPortfolio — edge cases", () => {
 
   it("when rf > all returns (long-only), falls back without throwing", async () => {
     // rf=0.30 > μ_A=0.10 and μ_B=0.20; no positive excess return exists.
-    const highRf: MarkowitzPortfolioInput = { ...TWO_ASSET, riskFreeRate: 0.30 };
+    const highRf: MarkowitzPortfolioInput = { ...TWO_ASSET, riskFreeRate: 0.3 };
     const out = await tool.execute(highRf);
     expect(sumWeights(out.weights)).toBeCloseTo(1, 4);
     for (const [, w] of Object.entries(out.weights)) {
@@ -403,12 +406,12 @@ describe("markowitzPortfolio — edge cases", () => {
     // ρ=0.99 (not exactly 1 to keep positive definiteness)
     const highCorr: MarkowitzPortfolioInput = {
       assets: [
-        { name: "X", expectedReturn: 0.10 },
+        { name: "X", expectedReturn: 0.1 },
         { name: "Y", expectedReturn: 0.15 },
       ],
       covarianceMatrix: [
         [0.04, 0.0198],
-        [0.0198, 0.0100],
+        [0.0198, 0.01],
       ],
       riskFreeRate: 0.03,
       allowShortSelling: false,

@@ -51,14 +51,16 @@ function solveLinear(A: Mat, b: Vec): number[] {
         pivotRow = row;
       }
     }
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    [aug[col], aug[pivotRow]] = [aug[pivotRow]!, aug[col]!];
+    // col and pivotRow are always in [0, n-1]; the ?? [] fallback is unreachable.
+    const rowA = aug[col] ?? [];
+    const rowB = aug[pivotRow] ?? [];
+    aug[col] = rowB;
+    aug[pivotRow] = rowA;
 
     const pivot = aug[col]?.[col] ?? 0;
     if (Math.abs(pivot) < 1e-12) {
       throw new Error(
-        `Covariance matrix is singular at column ${col}. ` +
-          "Ensure all assets have positive variance and that no two assets are perfectly correlated.",
+        `Covariance matrix is singular at column ${col}. Ensure all assets have positive variance and that no two assets are perfectly correlated.`,
       );
     }
 
@@ -169,9 +171,7 @@ function validateInputs(
       const scale = Math.max(1, Math.abs(ij), Math.abs(ji));
       if (Math.abs(ij - ji) > 1e-6 * scale) {
         throw new Error(
-          `covarianceMatrix is not symmetric: ` +
-            `cov[${i}][${j}]=${ij} ≠ cov[${j}][${i}]=${ji}. ` +
-            "Ensure the matrix equals its transpose.",
+          `covarianceMatrix is not symmetric: cov[${i}][${j}]=${ij} ≠ cov[${j}][${i}]=${ji}. Ensure the matrix equals its transpose.`,
         );
       }
     }
@@ -269,7 +269,9 @@ function numericalMaxSharpe(mu: Vec, cov: Mat, rf: number, w0: Vec, maxIter = 15
 
     const covW = matVec(cov, w);
     // ∇S[i] = (μ[i]·σ² − excessRet·(Σw)[i]) / σ³
-    const gradSharpe = mu.map((m, i) => ((m - rf) * sigmaSq - excessRet * (covW[i] ?? 0)) / sigmaCubed);
+    const gradSharpe = mu.map(
+      (m, i) => ((m - rf) * sigmaSq - excessRet * (covW[i] ?? 0)) / sigmaCubed,
+    );
 
     // Clip the step to avoid overshooting.
     const gradNorm = Math.sqrt(gradSharpe.reduce((s, g) => s + g * g, 0));
@@ -344,7 +346,10 @@ function buildEfficientFrontier(
 ): EfficientFrontierPoint[] {
   const minVarW = globalMinVariance(mu, cov, allowShortSelling);
   const minRet = pReturn(minVarW, mu);
-  const maxRetIdx = mu.reduce((best, r, i) => (r > (mu[best] ?? -Infinity) ? i : best), 0);
+  const maxRetIdx = mu.reduce(
+    (best, r, i) => (r > (mu[best] ?? Number.NEGATIVE_INFINITY) ? i : best),
+    0,
+  );
   const maxRet = mu[maxRetIdx] ?? 0;
   const n = mu.length;
 
@@ -388,7 +393,10 @@ function portfolioAtTargetVol(
   const minVarW = globalMinVariance(mu, cov, allowShortSelling);
   const minVol = pStdDev(minVarW, cov);
 
-  const maxRetIdx = mu.reduce((best, r, i) => (r > (mu[best] ?? -Infinity) ? i : best), 0);
+  const maxRetIdx = mu.reduce(
+    (best, r, i) => (r > (mu[best] ?? Number.NEGATIVE_INFINITY) ? i : best),
+    0,
+  );
   const maxRetW: number[] = Array<number>(n).fill(0);
   maxRetW[maxRetIdx] = 1;
   const maxVol = pStdDev(maxRetW, cov);
@@ -462,7 +470,9 @@ export function createMarkowitzPortfolioTool(
       let optW: number[];
 
       if (targetVolatility !== undefined) {
-        assumptions.push(`Objective: minimum variance at target volatility ${(targetVolatility * 100).toFixed(2)}%`);
+        assumptions.push(
+          `Objective: minimum variance at target volatility ${(targetVolatility * 100).toFixed(2)}%`,
+        );
         optW = portfolioAtTargetVol(mu, cov, allowShortSelling, targetVolatility, assumptions);
       } else {
         assumptions.push("Objective: maximize Sharpe ratio (tangency portfolio)");
@@ -487,7 +497,13 @@ export function createMarkowitzPortfolioTool(
       }
 
       // ── Efficient frontier ──────────────────────────────────────────────────
-      const efficientFrontierPoints = buildEfficientFrontier(mu, cov, riskFreeRate, allowShortSelling, 21);
+      const efficientFrontierPoints = buildEfficientFrontier(
+        mu,
+        cov,
+        riskFreeRate,
+        allowShortSelling,
+        21,
+      );
 
       return {
         weights,
