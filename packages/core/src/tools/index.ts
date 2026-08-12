@@ -134,9 +134,7 @@ export function createDefaultToolExecutors(): ToolExecutor[] {
     decorate(asExecutor(createCalculateNetSalaryTool(requireDefinition("calculateNetSalary")))),
     decorate(asExecutor(createProposeRepricingTool(requireDefinition("proposeRepricing")))),
     decorate(asExecutor(createSearchHotelsTool(requireDefinition("searchHotels")))),
-    decorate(
-      asExecutor(createMarkowitzPortfolioTool(requireDefinition("markowitzPortfolio"))),
-    ),
+    decorate(asExecutor(createMarkowitzPortfolioTool(requireDefinition("markowitzPortfolio")))),
     // runCode uses NoopSandbox by default — returns a helpful "not configured" error.
     // Override at composition root with a real SandboxPort adapter for actual execution.
     decorate(

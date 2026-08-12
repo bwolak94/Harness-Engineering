@@ -365,9 +365,9 @@ export const TOOL_REGISTRY: readonly ToolDefinition[] = [
         { name: "GLD", expectedReturn: 0.06 },
       ],
       covarianceMatrix: [
-        [0.0400, 0.0020, 0.0060],
-        [0.0020, 0.0009, 0.0005],
-        [0.0060, 0.0005, 0.0144],
+        [0.04, 0.002, 0.006],
+        [0.002, 0.0009, 0.0005],
+        [0.006, 0.0005, 0.0144],
       ],
       riskFreeRate: 0.05,
       allowShortSelling: false,
