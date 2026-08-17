@@ -39,6 +39,37 @@ export interface FlowAgentStep {
 }
 
 /**
+ * CanaryConfig — controls shadow-mode canary traffic splitting.
+ *
+ * When a FlowSpec carries a CanaryConfig, the ShadowRunner will fire a
+ * background shadow execution against this spec on each baseline run,
+ * proportional to `trafficPct`. The production result is always returned
+ * from the baseline — the shadow run is purely observational.
+ */
+export interface CanaryConfig {
+  /**
+   * Percentage of baseline runs that trigger a shadow canary execution.
+   * Value in [0, 100]. 100 = every run gets shadowed.
+   */
+  trafficPct: number;
+  /**
+   * Maximum acceptable percentage increase in cost before declaring a regression.
+   * Default: 20 (%).
+   */
+  maxCostDeltaPct?: number;
+  /**
+   * Maximum acceptable percentage increase in token usage before declaring a regression.
+   * Default: 20 (%).
+   */
+  maxTokenDeltaPct?: number;
+  /**
+   * Maximum acceptable percentage increase in wall-clock duration.
+   * Default: 50 (%).
+   */
+  maxDurationDeltaPct?: number;
+}
+
+/**
  * FlowSpec — full descriptor for a named orchestration flow.
  *
  * - `parallel`: all agents run concurrently via Supervisor.fanOut.
@@ -58,6 +89,18 @@ export interface FlowSpec {
   pattern: "parallel" | "sequential";
   /** Ordered list of agent steps. In parallel flows, order is cosmetic only. */
   steps: readonly FlowAgentStep[];
+  /**
+   * Optional semantic version for this flow definition.
+   * Stored alongside canary run records to enable version-over-version comparison.
+   * Example: "1.0.0", "2025-08-17-prompt-v2"
+   */
+  version?: string;
+  /**
+   * When present, this flow is a canary variant of a baseline flow.
+   * The ShadowRunner uses this config to decide whether to shadow-execute this flow
+   * alongside the baseline and to evaluate the resulting divergence.
+   */
+  canary?: CanaryConfig;
 }
 
 // ---------------------------------------------------------------------------

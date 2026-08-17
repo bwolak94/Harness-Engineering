@@ -180,6 +180,17 @@ export function reduce(state: WorkflowState, event: HarnessEvent): WorkflowState
     case "budget.threshold.exceeded":
       return { ...state, seq: event.seq };
 
+    // canary.* events are observability events emitted by ShadowRunner.
+    // They are not associated with individual workflow states — advance seq only.
+    case "canary.started":
+      return { ...state, seq: event.seq };
+
+    case "canary.completed":
+      return { ...state, seq: event.seq };
+
+    case "canary.regression":
+      return { ...state, seq: event.seq };
+
     default:
       return assertNever(event);
   }
