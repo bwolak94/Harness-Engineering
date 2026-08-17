@@ -1,6 +1,8 @@
 import type { z } from "zod";
 import { err } from "../domain/result.js";
+import type { ToolCachePort } from "../ports/tool-cache.port.js";
 import type { ToolCallError, ToolExecutor } from "../ports/tool-registry.port.js";
+import { buildCacheKey } from "./tool-cache-key.js";
 import type { ToolPolicy } from "./tool-policy.js";
 import { truncateResult } from "./truncation.js";
 
@@ -183,6 +185,77 @@ export function withResultTruncation(maxChars: number): ToolExecutorDecorator {
       // Return the truncated string as the result value.
       // The model receives JSON text it can parse or display.
       return { ok: true as const, value: truncated };
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// withToolCache — content-addressable result cache for idempotent tools
+// ---------------------------------------------------------------------------
+
+export interface ToolCacheOptions {
+  /** Time-to-live in milliseconds. Omit for entries that never expire. */
+  ttlMs?: number;
+  /**
+   * When true, cache errors as well as successes.
+   * Default: false (only cache ok results).
+   */
+  cacheErrors?: boolean;
+}
+
+/**
+ * withToolCache — skip execution when an equivalent call result is cached.
+ *
+ * The cache key is a content-addressable hash of `toolName + canonicalJSON(input)`
+ * (see `buildCacheKey`). Only tools marked `idempotent: true` in their definition
+ * should be wrapped with this decorator; non-idempotent tools must not be cached.
+ *
+ * Placement in the standard stack: insert BEFORE withTimeout so that a cache
+ * hit never occupies the timeout budget.
+ *
+ *   withToolCache(port, opts) → withTimeout → withResultTruncation → withTelemetry
+ *
+ * @param cache   - A ToolCachePort implementation (NoopToolCache = disabled).
+ * @param options - TTL and error-caching preferences.
+ */
+export function withToolCache(
+  cache: ToolCachePort,
+  options: ToolCacheOptions = {},
+): ToolExecutorDecorator {
+  const { ttlMs, cacheErrors = false } = options;
+
+  return (executor) => ({
+    definition: executor.definition,
+    execute: async (args, signal) => {
+      const key = buildCacheKey(executor.definition.name, args);
+      const now = Date.now();
+
+      // --- cache read ---
+      const hit = await cache.get(key);
+      if (hit !== undefined) {
+        const expired = hit.expiresAt !== undefined && hit.expiresAt <= now;
+        if (!expired) {
+          return hit.result;
+        }
+        // Expired entry — fall through to real execution and overwrite.
+        await cache.invalidate(key);
+      }
+
+      // --- real execution ---
+      const result = await executor.execute(args, signal);
+
+      // --- cache write ---
+      const shouldCache = result.ok || cacheErrors;
+      if (shouldCache) {
+        const entry = {
+          result,
+          cachedAt: now,
+          ...(ttlMs !== undefined && { expiresAt: now + ttlMs }),
+        };
+        await cache.set(key, entry);
+      }
+
+      return result;
     },
   });
 }
