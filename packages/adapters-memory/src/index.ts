@@ -20,3 +20,4 @@ export * from "./in-memory-step-lease.js";
 export * from "./in-memory-rate-limiter.js";
 export * from "./in-memory-usage-ledger.js";
 export * from "./in-memory-tool-cache.js";
+export * from "./in-memory-canary-store.js";

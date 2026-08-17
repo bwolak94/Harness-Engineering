@@ -16,3 +16,5 @@ export * from "./supervisor.js";
 export * from "./secret-redactor.js";
 export * from "./declarative-tool.js";
 export * from "./flow-runner.js";
+export * from "./canary-analyzer.js";
+export * from "./shadow-runner.js";

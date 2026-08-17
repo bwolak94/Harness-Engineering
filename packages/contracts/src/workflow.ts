@@ -353,6 +353,51 @@ export const ModelCompletedEventSchema = BaseEventSchema.extend({
   }),
 });
 
+// ---------------------------------------------------------------------------
+// canary.started — shadow run launched alongside the baseline flow
+// canary.completed — shadow run finished; metrics compared to baseline
+// canary.regression — divergence thresholds breached
+// ---------------------------------------------------------------------------
+
+export const CanaryStartedEventSchema = BaseEventSchema.extend({
+  type: z.literal("canary.started"),
+  payload: z.object({
+    baselineFlowId: z.string().min(1),
+    canaryFlowId: z.string().min(1),
+    canaryVersion: z.string().min(1),
+    shadowWorkflowId: z.string().min(1),
+    trafficPct: z.number().min(0).max(100),
+  }),
+});
+
+export const CanaryCompletedEventSchema = BaseEventSchema.extend({
+  type: z.literal("canary.completed"),
+  payload: z.object({
+    baselineFlowId: z.string().min(1),
+    canaryFlowId: z.string().min(1),
+    shadowWorkflowId: z.string().min(1),
+    /** Whether divergence thresholds were breached. */
+    regression: z.boolean(),
+    divergence: z.object({
+      stepCountDelta: z.number(),
+      tokenDeltaPct: z.number(),
+      costDeltaPct: z.number(),
+      durationDeltaPct: z.number(),
+    }),
+  }),
+});
+
+export const CanaryRegressionEventSchema = BaseEventSchema.extend({
+  type: z.literal("canary.regression"),
+  payload: z.object({
+    baselineFlowId: z.string().min(1),
+    canaryFlowId: z.string().min(1),
+    shadowWorkflowId: z.string().min(1),
+    /** Human-readable description of the regression. */
+    reason: z.string().min(1),
+  }),
+});
+
 export const HarnessEventSchema = z.discriminatedUnion("type", [
   WorkflowStartedEventSchema,
   StepPlannedEventSchema,
@@ -378,6 +423,9 @@ export const HarnessEventSchema = z.discriminatedUnion("type", [
   BudgetThresholdExceededEventSchema,
   ModelDeltaEventSchema,
   ModelCompletedEventSchema,
+  CanaryStartedEventSchema,
+  CanaryCompletedEventSchema,
+  CanaryRegressionEventSchema,
 ]);
 
 export type HarnessEvent = z.infer<typeof HarnessEventSchema>;
@@ -405,3 +453,6 @@ export type ApprovalTimedOutEvent = z.infer<typeof ApprovalTimedOutEventSchema>;
 export type BudgetThresholdExceededEvent = z.infer<typeof BudgetThresholdExceededEventSchema>;
 export type ModelDeltaEvent = z.infer<typeof ModelDeltaEventSchema>;
 export type ModelCompletedEvent = z.infer<typeof ModelCompletedEventSchema>;
+export type CanaryStartedEvent = z.infer<typeof CanaryStartedEventSchema>;
+export type CanaryCompletedEvent = z.infer<typeof CanaryCompletedEventSchema>;
+export type CanaryRegressionEvent = z.infer<typeof CanaryRegressionEventSchema>;

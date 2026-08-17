@@ -24,3 +24,4 @@ export * from "./rate-limiter.port.js";
 export * from "./usage-ledger.port.js";
 export * from "./billing.port.js";
 export * from "./tool-cache.port.js";
+export * from "./canary-store.port.js";
