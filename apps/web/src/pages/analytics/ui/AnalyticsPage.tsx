@@ -4,6 +4,7 @@ import type {
   WorkflowCompletedEvent,
   WorkflowStartedEvent,
 } from "@harness/contracts";
+import { computeForecast } from "@harness/core";
 import { useWorkflowStore } from "../../../entities/workflow/index.js";
 
 // ---------------------------------------------------------------------------
@@ -212,6 +213,149 @@ function ToolUsageChart({ tools }: { tools: ToolStat[] }) {
 }
 
 // ---------------------------------------------------------------------------
+// ForecastPanel — 30-day cost projection with confidence band (SVG)
+// ---------------------------------------------------------------------------
+
+const FORECAST_W = 600;
+const FORECAST_H = 80;
+const FORECAST_LABEL_H = 14;
+
+function ForecastPanel({ days }: { days: DayStat[] }) {
+  if (days.length < 2) {
+    return (
+      <div className="flex h-20 items-center justify-center text-xs text-[#3f3f46]">
+        Need at least 2 days of history to forecast
+      </div>
+    );
+  }
+
+  let forecast: ReturnType<typeof computeForecast> | null = null;
+  try {
+    forecast = computeForecast(days, 30, { alpha: 0.3, beta: 0.1 });
+  } catch {
+    return (
+      <div className="flex h-20 items-center justify-center text-xs text-[#3f3f46]">
+        Forecast unavailable
+      </div>
+    );
+  }
+
+  const points = forecast.next30;
+  const allCosts = [...days.map((d) => d.costUsd), ...points.map((p) => p.upper)];
+  const maxVal = Math.max(...allCosts, 0.0001);
+
+  const histVisible = days.slice(-14);
+  const totalPoints = histVisible.length + points.length;
+  const colW = FORECAST_W / totalPoints;
+
+  const toY = (v: number) => FORECAST_H - (v / maxVal) * FORECAST_H;
+
+  // Build SVG path strings for forecast band and line
+  const bandPath = (() => {
+    const upperCoords = points.map((p, i) => {
+      const x = (histVisible.length + i + 0.5) * colW;
+      return `${x},${toY(p.upper)}`;
+    });
+    const lowerCoords = points
+      .map((p, i) => {
+        const x = (histVisible.length + i + 0.5) * colW;
+        return `${x},${toY(p.lower)}`;
+      })
+      .reverse();
+    return `M ${upperCoords.join(" L ")} L ${lowerCoords.join(" L ")} Z`;
+  })();
+
+  const linePath = points
+    .map((p, i) => {
+      const x = (histVisible.length + i + 0.5) * colW;
+      return `${i === 0 ? "M" : "L"} ${x} ${toY(p.costUsd)}`;
+    })
+    .join(" ");
+
+  return (
+    <div>
+      <svg
+        viewBox={`0 0 ${FORECAST_W} ${FORECAST_H + FORECAST_LABEL_H}`}
+        className="w-full"
+        role="img"
+        aria-labelledby="forecast-chart-title"
+      >
+        <title id="forecast-chart-title">30-day cost forecast chart</title>
+
+        {/* Historical bars (last 14 days) */}
+        {histVisible.map((d, i) => {
+          const x = i * colW;
+          const barH = (d.costUsd / maxVal) * FORECAST_H;
+          return (
+            <rect
+              key={d.date}
+              x={x}
+              y={FORECAST_H - barH}
+              width={colW - 2}
+              height={barH > 0 ? barH : 1}
+              rx={1}
+              fill="#6366f1"
+              opacity={0.6}
+            />
+          );
+        })}
+
+        {/* Divider between history and forecast */}
+        <line
+          x1={histVisible.length * colW}
+          y1={0}
+          x2={histVisible.length * colW}
+          y2={FORECAST_H}
+          stroke="#3f3f46"
+          strokeWidth={1}
+          strokeDasharray="3 3"
+        />
+
+        {/* Confidence band */}
+        <path d={bandPath} fill="#6366f1" opacity={0.15} />
+
+        {/* Forecast line */}
+        <path d={linePath} fill="none" stroke="#6366f1" strokeWidth={1.5} opacity={0.9} />
+
+        {/* Labels: "History" and "Forecast" */}
+        <text x={4} y={FORECAST_H + FORECAST_LABEL_H - 2} fontSize={8} fill="#3f3f46">
+          ← {histVisible.length}d history
+        </text>
+        <text
+          x={histVisible.length * colW + 4}
+          y={FORECAST_H + FORECAST_LABEL_H - 2}
+          fontSize={8}
+          fill="#6366f1"
+          opacity={0.8}
+        >
+          30d forecast →
+        </text>
+      </svg>
+
+      {/* Summary row */}
+      <div className="mt-2 flex items-center gap-4 text-[10px] text-[#52525b]">
+        <span>
+          Trend:{" "}
+          <span className={forecast.trend >= 0 ? "text-red-400" : "text-green-400"}>
+            {forecast.trend >= 0 ? "+" : ""}
+            {(forecast.trend * 100).toFixed(4)}¢/day
+          </span>
+        </span>
+        <span>
+          30d projection:{" "}
+          <span className="font-mono text-white">${forecast.projection30dUsd.toFixed(4)}</span>
+        </span>
+        {forecast.alert && (
+          <span className="rounded bg-red-900/40 px-1.5 py-0.5 text-red-400">
+            ⚠ Over monthly cap
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -250,6 +394,14 @@ export function AnalyticsPage() {
             Cost per day (USD)
           </p>
           <CostBarChart days={days} />
+        </div>
+
+        {/* 30-day cost forecast */}
+        <div className="mb-5 rounded-md border border-border bg-surface px-4 py-3">
+          <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-[#3f3f46]">
+            30-day cost forecast (Holt's method)
+          </p>
+          <ForecastPanel days={days} />
         </div>
 
         {/* Tool usage */}

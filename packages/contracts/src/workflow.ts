@@ -354,6 +354,25 @@ export const ModelCompletedEventSchema = BaseEventSchema.extend({
 });
 
 // ---------------------------------------------------------------------------
+// budget.forecast.alert — 30-day projected spend exceeds monthly cap
+//
+// Emitted by the composition root after computing a CostForecaster result
+// when ForecastResult.alert === true. Informational: does NOT stop workflows.
+// ---------------------------------------------------------------------------
+
+export const BudgetForecastAlertEventSchema = BaseEventSchema.extend({
+  type: z.literal("budget.forecast.alert"),
+  payload: z.object({
+    /** Projected total spend over the next 30 days (USD). */
+    projection30dUsd: z.number().nonnegative(),
+    /** Configured monthly cap that was exceeded (USD). */
+    monthlyCap: z.number().positive(),
+    /** Smoothed daily trend (USD/day) at forecast time. */
+    dailyTrend: z.number(),
+  }),
+});
+
+// ---------------------------------------------------------------------------
 // canary.started — shadow run launched alongside the baseline flow
 // canary.completed — shadow run finished; metrics compared to baseline
 // canary.regression — divergence thresholds breached
@@ -421,6 +440,7 @@ export const HarnessEventSchema = z.discriminatedUnion("type", [
   ApprovalRejectedEventSchema,
   ApprovalTimedOutEventSchema,
   BudgetThresholdExceededEventSchema,
+  BudgetForecastAlertEventSchema,
   ModelDeltaEventSchema,
   ModelCompletedEventSchema,
   CanaryStartedEventSchema,
@@ -451,6 +471,7 @@ export type ApprovalGrantedEvent = z.infer<typeof ApprovalGrantedEventSchema>;
 export type ApprovalRejectedEvent = z.infer<typeof ApprovalRejectedEventSchema>;
 export type ApprovalTimedOutEvent = z.infer<typeof ApprovalTimedOutEventSchema>;
 export type BudgetThresholdExceededEvent = z.infer<typeof BudgetThresholdExceededEventSchema>;
+export type BudgetForecastAlertEvent = z.infer<typeof BudgetForecastAlertEventSchema>;
 export type ModelDeltaEvent = z.infer<typeof ModelDeltaEventSchema>;
 export type ModelCompletedEvent = z.infer<typeof ModelCompletedEventSchema>;
 export type CanaryStartedEvent = z.infer<typeof CanaryStartedEventSchema>;
