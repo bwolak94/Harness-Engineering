@@ -19,3 +19,4 @@ export * from "./flow-runner.js";
 export * from "./canary-analyzer.js";
 export * from "./shadow-runner.js";
 export * from "./cost-forecaster.js";
+export * from "./composed-tool.js";
