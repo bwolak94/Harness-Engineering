@@ -180,6 +180,11 @@ export function reduce(state: WorkflowState, event: HarnessEvent): WorkflowState
     case "budget.threshold.exceeded":
       return { ...state, seq: event.seq };
 
+    // budget.forecast.alert is an informational forecasting event.
+    // It does not affect workflow state — advance seq only.
+    case "budget.forecast.alert":
+      return { ...state, seq: event.seq };
+
     // canary.* events are observability events emitted by ShadowRunner.
     // They are not associated with individual workflow states — advance seq only.
     case "canary.started":
