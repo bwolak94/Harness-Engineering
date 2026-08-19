@@ -14,7 +14,13 @@ const DEF = {
 const tool = createCategorizeTransactionsTool(DEF);
 
 const BASE_TXNS = [
-  { id: "t1", date: "2026-07-02", description: "WHOLE FOODS MARKET", amount: -89.5, currency: "USD" },
+  {
+    id: "t1",
+    date: "2026-07-02",
+    description: "WHOLE FOODS MARKET",
+    amount: -89.5,
+    currency: "USD",
+  },
   { id: "t2", date: "2026-07-05", description: "NETFLIX.COM", amount: -15.99, currency: "USD" },
   { id: "t3", date: "2026-07-10", description: "UBER *TRIP", amount: -22.4, currency: "USD" },
   { id: "t4", date: "2026-07-15", description: "PAYROLL DEPOSIT", amount: 4500, currency: "USD" },
@@ -72,7 +78,13 @@ describe("N17 categorizeTransactions", () => {
   it("custom rule takes precedence over built-in", async () => {
     const result = await tool.execute({
       transactions: [
-        { id: "x1", date: "2026-07-01", description: "AMAZON.COM", amount: -49.99, currency: "USD" },
+        {
+          id: "x1",
+          date: "2026-07-01",
+          description: "AMAZON.COM",
+          amount: -49.99,
+          currency: "USD",
+        },
       ],
       customCategories: [{ name: "office_supplies", keywords: ["amazon"] }],
     });
@@ -87,7 +99,13 @@ describe("N17 categorizeTransactions", () => {
   it("unrecognised merchants go into uncategorizedIds", async () => {
     const result = await tool.execute({
       transactions: [
-        { id: "u1", date: "2026-07-01", description: "XYZZY CORP 12345", amount: -42.0, currency: "USD" },
+        {
+          id: "u1",
+          date: "2026-07-01",
+          description: "XYZZY CORP 12345",
+          amount: -42.0,
+          currency: "USD",
+        },
       ],
       customCategories: [],
     });
@@ -118,8 +136,20 @@ describe("N17 categorizeTransactions", () => {
   it("flags duplicate same-day same-amount charge", async () => {
     const result = await tool.execute({
       transactions: [
-        { id: "d1", date: "2026-07-01", description: "NETFLIX.COM", amount: -15.99, currency: "USD" },
-        { id: "d2", date: "2026-07-01", description: "NETFLIX.COM", amount: -15.99, currency: "USD" },
+        {
+          id: "d1",
+          date: "2026-07-01",
+          description: "NETFLIX.COM",
+          amount: -15.99,
+          currency: "USD",
+        },
+        {
+          id: "d2",
+          date: "2026-07-01",
+          description: "NETFLIX.COM",
+          amount: -15.99,
+          currency: "USD",
+        },
       ],
       customCategories: [],
     });
