@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import type { CheckDesignFeasibilityInput } from "@harness/contracts/tools";
+import { describe, expect, it } from "vitest";
 import { createCheckDesignFeasibilityTool } from "../n14-check-design-feasibility.js";
 
 const DEF = {
@@ -93,9 +93,7 @@ describe("N14 checkDesignFeasibility", () => {
       requirements: { ...GOOD_INPUT.requirements, ipRating: "IP67" },
       design: {
         ...GOOD_INPUT.design,
-        materials: [
-          { name: "ABS housing", ipRatingCapable: "IP54", tempMinC: -30, tempMaxC: 80 },
-        ],
+        materials: [{ name: "ABS housing", ipRatingCapable: "IP54", tempMinC: -30, tempMaxC: 80 }],
       },
     });
 

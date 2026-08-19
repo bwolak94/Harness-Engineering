@@ -141,9 +141,7 @@ export function createDefaultToolExecutors(): ToolExecutor[] {
     decorate(asExecutor(createProposeRepricingTool(requireDefinition("proposeRepricing")))),
     decorate(asExecutor(createSearchHotelsTool(requireDefinition("searchHotels")))),
     decorate(
-      asExecutor(
-        createEstimateProductionCostTool(requireDefinition("estimateProductionCost")),
-      ),
+      asExecutor(createEstimateProductionCostTool(requireDefinition("estimateProductionCost"))),
     ),
     decorate(
       asExecutor(createCheckDesignFeasibilityTool(requireDefinition("checkDesignFeasibility"))),
