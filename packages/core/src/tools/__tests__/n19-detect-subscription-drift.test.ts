@@ -59,7 +59,8 @@ describe("N19 detectSubscriptionDrift", () => {
     expect(spotify?.driftPct).toBeGreaterThan(0);
 
     const alert = result.driftAlerts.find(
-      (a) => a.alertType === "price_increase" && a.subscriptionName.toLowerCase().includes("spotify"),
+      (a) =>
+        a.alertType === "price_increase" && a.subscriptionName.toLowerCase().includes("spotify"),
     );
     expect(alert).toBeDefined();
   });
@@ -67,7 +68,13 @@ describe("N19 detectSubscriptionDrift", () => {
   it("single charge is not treated as a subscription", async () => {
     const result = await tool.execute({
       transactions: [
-        { id: "x1", date: pastDate(10), description: "UNKNOWN SERVICE", amount: 9.99, currency: "USD" },
+        {
+          id: "x1",
+          date: pastDate(10),
+          description: "UNKNOWN SERVICE",
+          amount: 9.99,
+          currency: "USD",
+        },
       ],
       lookbackMonths: 12,
       amountTolerancePct: 5,
@@ -105,8 +112,20 @@ describe("N19 detectSubscriptionDrift", () => {
   it("flags potentially_cancelled when no recent charge", async () => {
     const result = await tool.execute({
       transactions: [
-        { id: "o1", date: pastDate(120), description: "OLD SUBSCRIPTION", amount: 12.99, currency: "USD" },
-        { id: "o2", date: pastDate(150), description: "OLD SUBSCRIPTION", amount: 12.99, currency: "USD" },
+        {
+          id: "o1",
+          date: pastDate(120),
+          description: "OLD SUBSCRIPTION",
+          amount: 12.99,
+          currency: "USD",
+        },
+        {
+          id: "o2",
+          date: pastDate(150),
+          description: "OLD SUBSCRIPTION",
+          amount: 12.99,
+          currency: "USD",
+        },
       ],
       lookbackMonths: 12,
       amountTolerancePct: 5,
@@ -149,7 +168,13 @@ describe("N19 detectSubscriptionDrift", () => {
     const result = await tool.execute({
       transactions: [
         ...STABLE_NETFLIX,
-        { id: "one", date: pastDate(15), description: "RANDOM STORE PURCHASE", amount: 55.0, currency: "USD" },
+        {
+          id: "one",
+          date: pastDate(15),
+          description: "RANDOM STORE PURCHASE",
+          amount: 55.0,
+          currency: "USD",
+        },
       ],
       lookbackMonths: 12,
       amountTolerancePct: 5,

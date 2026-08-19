@@ -112,9 +112,9 @@ describe("N18 simulateRetirement", () => {
   });
 
   it("throws when retirementAge <= currentAge", async () => {
-    await expect(
-      tool.execute({ ...BASE_INPUT, retirementAge: 35 }),
-    ).rejects.toThrow(/retirementAge/);
+    await expect(tool.execute({ ...BASE_INPUT, retirementAge: 35 })).rejects.toThrow(
+      /retirementAge/,
+    );
   });
 
   it("shorter accumulation phase results in lower median savings", async () => {
