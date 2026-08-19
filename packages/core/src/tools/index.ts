@@ -26,6 +26,9 @@ import { createEstimateProductionCostTool } from "./n13-estimate-production-cost
 import { createCheckDesignFeasibilityTool } from "./n14-check-design-feasibility.js";
 import { createEstimateProductWeightTool } from "./n15-estimate-product-weight.js";
 import { createMarkowitzPortfolioTool } from "./n16-markowitz-portfolio.js";
+import { createCategorizeTransactionsTool } from "./n17-categorize-transactions.js";
+import { createSimulateRetirementTool } from "./n18-simulate-retirement.js";
+import { createDetectSubscriptionDriftTool } from "./n19-detect-subscription-drift.js";
 import { createRunCodeTool } from "./run-code.js";
 
 // Re-export individual tool factories so callers can build custom variants.
@@ -47,6 +50,9 @@ export { createEstimateProductionCostTool } from "./n13-estimate-production-cost
 export { createCheckDesignFeasibilityTool } from "./n14-check-design-feasibility.js";
 export { createEstimateProductWeightTool } from "./n15-estimate-product-weight.js";
 export { createMarkowitzPortfolioTool } from "./n16-markowitz-portfolio.js";
+export { createCategorizeTransactionsTool } from "./n17-categorize-transactions.js";
+export { createSimulateRetirementTool } from "./n18-simulate-retirement.js";
+export { createDetectSubscriptionDriftTool } from "./n19-detect-subscription-drift.js";
 export { createRunCodeTool } from "./run-code.js";
 export type { RunCodeDeps } from "./run-code.js";
 
@@ -150,6 +156,13 @@ export function createDefaultToolExecutors(): ToolExecutor[] {
       asExecutor(createEstimateProductWeightTool(requireDefinition("estimateProductWeight"))),
     ),
     decorate(asExecutor(createMarkowitzPortfolioTool(requireDefinition("markowitzPortfolio")))),
+    decorate(
+      asExecutor(createCategorizeTransactionsTool(requireDefinition("categorizeTransactions"))),
+    ),
+    decorate(asExecutor(createSimulateRetirementTool(requireDefinition("simulateRetirement")))),
+    decorate(
+      asExecutor(createDetectSubscriptionDriftTool(requireDefinition("detectSubscriptionDrift"))),
+    ),
     // runCode uses NoopSandbox by default — returns a helpful "not configured" error.
     // Override at composition root with a real SandboxPort adapter for actual execution.
     decorate(
