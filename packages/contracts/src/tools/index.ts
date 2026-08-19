@@ -49,6 +49,18 @@ import {
   MarkowitzPortfolioInputSchema,
   MarkowitzPortfolioOutputSchema,
 } from "./n16-markowitz-portfolio.js";
+import {
+  CategorizeTransactionsInputSchema,
+  CategorizeTransactionsOutputSchema,
+} from "./n17-categorize-transactions.js";
+import {
+  SimulateRetirementInputSchema,
+  SimulateRetirementOutputSchema,
+} from "./n18-simulate-retirement.js";
+import {
+  DetectSubscriptionDriftInputSchema,
+  DetectSubscriptionDriftOutputSchema,
+} from "./n19-detect-subscription-drift.js";
 
 // Re-export individual schemas for direct use
 export * from "./n1-analyze-investment.js";
@@ -67,6 +79,9 @@ export * from "./n13-estimate-production-cost.js";
 export * from "./n14-check-design-feasibility.js";
 export * from "./n15-estimate-product-weight.js";
 export * from "./n16-markowitz-portfolio.js";
+export * from "./n17-categorize-transactions.js";
+export * from "./n18-simulate-retirement.js";
+export * from "./n19-detect-subscription-drift.js";
 
 // ---------------------------------------------------------------------------
 // Tool registry — all definitions in one place.
@@ -543,6 +558,137 @@ export const TOOL_REGISTRY: readonly ToolDefinition[] = [
     outputSchema: {},
     exampleInput: {
       code: "const nums = [1, 2, 3, 4, 5];\nconst sum = nums.reduce((a, b) => a + b, 0);\nconsole.log('Sum:', sum);",
+    },
+  },
+  {
+    name: "categorizeTransactions",
+    description:
+      "Classifies a list of bank/card transactions into spending categories using built-in keyword " +
+      "rules (food, housing, transport, healthcare, dining, entertainment, shopping, income…) plus " +
+      "optional caller-defined rules. Returns byCategory[] sorted by spend, monthly trend, and " +
+      "anomaly flags for unusually large or duplicate transactions.",
+    dangerous: false,
+    idempotent: true,
+    costHint: "cheap",
+    inputSchema: toJsonSchema(CategorizeTransactionsInputSchema),
+    outputSchema: toJsonSchema(CategorizeTransactionsOutputSchema),
+    exampleInput: {
+      transactions: [
+        {
+          id: "t1",
+          date: "2026-07-02",
+          description: "WHOLE FOODS MARKET",
+          amount: -89.5,
+          currency: "USD",
+        },
+        {
+          id: "t2",
+          date: "2026-07-05",
+          description: "NETFLIX.COM",
+          amount: -15.99,
+          currency: "USD",
+        },
+        { id: "t3", date: "2026-07-10", description: "UBER *TRIP", amount: -22.4, currency: "USD" },
+        {
+          id: "t4",
+          date: "2026-07-15",
+          description: "PAYROLL DEPOSIT",
+          amount: 4500,
+          currency: "USD",
+        },
+        {
+          id: "t5",
+          date: "2026-07-20",
+          description: "AMAZON.COM",
+          amount: -134.0,
+          currency: "USD",
+        },
+      ],
+    },
+  },
+  {
+    name: "simulateRetirement",
+    description:
+      "Runs a Monte Carlo retirement simulation (seeded LCG PRNG, default 1 000 paths) to estimate " +
+      "the probability of savings lasting through life expectancy, 10/25/50/75/90th-percentile " +
+      "portfolio values at retirement, and how many years of withdrawals each percentile supports. " +
+      "Returns up to 4 ranked improvement recommendations. Pass seed for deterministic results.",
+    dangerous: false,
+    idempotent: false,
+    costHint: "moderate",
+    inputSchema: toJsonSchema(SimulateRetirementInputSchema),
+    outputSchema: toJsonSchema(SimulateRetirementOutputSchema),
+    exampleInput: {
+      currentAge: 35,
+      retirementAge: 65,
+      lifeExpectancy: 90,
+      currentSavingsUsd: 120000,
+      annualContributionUsd: 18000,
+      targetMonthlyWithdrawalUsd: 4000,
+      portfolio: { equityPct: 70, bondPct: 25, cashPct: 5 },
+      inflationRatePct: 2.5,
+      simulations: 1000,
+      seed: 42,
+    },
+  },
+  {
+    name: "detectSubscriptionDrift",
+    description:
+      "Fingerprints recurring charges in a debit-transaction list, detects price drift (increases " +
+      "or decreases over time), flags potentially forgotten subscriptions (no charge for > 60 days), " +
+      "and surfaces duplicate or irregular patterns. Returns subscriptions[] sorted by total spend, " +
+      "estimated monthly/annual totals, and prioritised driftAlerts[].",
+    dangerous: false,
+    idempotent: true,
+    costHint: "cheap",
+    inputSchema: toJsonSchema(DetectSubscriptionDriftInputSchema),
+    outputSchema: toJsonSchema(DetectSubscriptionDriftOutputSchema),
+    exampleInput: {
+      transactions: [
+        {
+          id: "s1",
+          date: "2026-01-01",
+          description: "NETFLIX.COM",
+          amount: 15.99,
+          currency: "USD",
+        },
+        {
+          id: "s2",
+          date: "2026-02-01",
+          description: "NETFLIX.COM",
+          amount: 15.99,
+          currency: "USD",
+        },
+        {
+          id: "s3",
+          date: "2026-03-01",
+          description: "NETFLIX.COM",
+          amount: 17.99,
+          currency: "USD",
+        },
+        {
+          id: "s4",
+          date: "2026-01-15",
+          description: "SPOTIFY PREMIUM",
+          amount: 9.99,
+          currency: "USD",
+        },
+        {
+          id: "s5",
+          date: "2026-02-15",
+          description: "SPOTIFY PREMIUM",
+          amount: 9.99,
+          currency: "USD",
+        },
+        {
+          id: "s6",
+          date: "2025-09-20",
+          description: "ANNUAL GYM MEMBERSHIP",
+          amount: 299.0,
+          currency: "USD",
+        },
+      ],
+      lookbackMonths: 12,
     },
   },
 ] as const;
