@@ -22,6 +22,9 @@ import { createSimulatePVPaybackTool } from "./n8-simulate-pv-payback.js";
 import { createCalculateNetSalaryTool } from "./n9-calculate-net-salary.js";
 import { createProposeRepricingTool } from "./n10-propose-repricing.js";
 import { createSearchHotelsTool } from "./n12-search-hotels.js";
+import { createEstimateProductionCostTool } from "./n13-estimate-production-cost.js";
+import { createCheckDesignFeasibilityTool } from "./n14-check-design-feasibility.js";
+import { createEstimateProductWeightTool } from "./n15-estimate-product-weight.js";
 import { createMarkowitzPortfolioTool } from "./n16-markowitz-portfolio.js";
 import { createRunCodeTool } from "./run-code.js";
 
@@ -40,6 +43,9 @@ export { createProposeRepricingTool } from "./n10-propose-repricing.js";
 export { createApplyRepricingTool } from "./n11-apply-repricing.js";
 export type { ApplyRepricingDeps } from "./n11-apply-repricing.js";
 export { createSearchHotelsTool } from "./n12-search-hotels.js";
+export { createEstimateProductionCostTool } from "./n13-estimate-production-cost.js";
+export { createCheckDesignFeasibilityTool } from "./n14-check-design-feasibility.js";
+export { createEstimateProductWeightTool } from "./n15-estimate-product-weight.js";
 export { createMarkowitzPortfolioTool } from "./n16-markowitz-portfolio.js";
 export { createRunCodeTool } from "./run-code.js";
 export type { RunCodeDeps } from "./run-code.js";
@@ -134,6 +140,15 @@ export function createDefaultToolExecutors(): ToolExecutor[] {
     decorate(asExecutor(createCalculateNetSalaryTool(requireDefinition("calculateNetSalary")))),
     decorate(asExecutor(createProposeRepricingTool(requireDefinition("proposeRepricing")))),
     decorate(asExecutor(createSearchHotelsTool(requireDefinition("searchHotels")))),
+    decorate(
+      asExecutor(createEstimateProductionCostTool(requireDefinition("estimateProductionCost"))),
+    ),
+    decorate(
+      asExecutor(createCheckDesignFeasibilityTool(requireDefinition("checkDesignFeasibility"))),
+    ),
+    decorate(
+      asExecutor(createEstimateProductWeightTool(requireDefinition("estimateProductWeight"))),
+    ),
     decorate(asExecutor(createMarkowitzPortfolioTool(requireDefinition("markowitzPortfolio")))),
     // runCode uses NoopSandbox by default — returns a helpful "not configured" error.
     // Override at composition root with a real SandboxPort adapter for actual execution.

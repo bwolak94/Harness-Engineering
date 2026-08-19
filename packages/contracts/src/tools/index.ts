@@ -34,6 +34,18 @@ import {
 import { ApplyRepricingInputSchema, ApplyRepricingOutputSchema } from "./n11-apply-repricing.js";
 import { SearchHotelsInputSchema, SearchHotelsOutputSchema } from "./n12-search-hotels.js";
 import {
+  EstimateProductionCostInputSchema,
+  EstimateProductionCostOutputSchema,
+} from "./n13-estimate-production-cost.js";
+import {
+  CheckDesignFeasibilityInputSchema,
+  CheckDesignFeasibilityOutputSchema,
+} from "./n14-check-design-feasibility.js";
+import {
+  EstimateProductWeightInputSchema,
+  EstimateProductWeightOutputSchema,
+} from "./n15-estimate-product-weight.js";
+import {
   MarkowitzPortfolioInputSchema,
   MarkowitzPortfolioOutputSchema,
 } from "./n16-markowitz-portfolio.js";
@@ -51,6 +63,9 @@ export * from "./n9-calculate-net-salary.js";
 export * from "./n10-propose-repricing.js";
 export * from "./n11-apply-repricing.js";
 export * from "./n12-search-hotels.js";
+export * from "./n13-estimate-production-cost.js";
+export * from "./n14-check-design-feasibility.js";
+export * from "./n15-estimate-product-weight.js";
 export * from "./n16-markowitz-portfolio.js";
 
 // ---------------------------------------------------------------------------
@@ -371,6 +386,147 @@ export const TOOL_REGISTRY: readonly ToolDefinition[] = [
       ],
       riskFreeRate: 0.05,
       allowShortSelling: false,
+    },
+  },
+  {
+    name: "estimateProductionCost",
+    description:
+      "Calculates unit production cost from a Bill of Materials + labour at multiple production " +
+      "volumes. Applies per-component volume discounts, amortises tooling fixed costs, and " +
+      "projects gross margin at a target retail price. Returns volumeBreakdown[] and assumptions[].",
+    dangerous: false,
+    idempotent: true,
+    costHint: "free",
+    inputSchema: toJsonSchema(EstimateProductionCostInputSchema),
+    outputSchema: toJsonSchema(EstimateProductionCostOutputSchema),
+    exampleInput: {
+      bom: [
+        {
+          id: "mcu-stm32",
+          name: "STM32L4 MCU",
+          quantity: 1,
+          unitCostBase: 4.5,
+          volumeDiscounts: [
+            { minQty: 1000, discountPct: 10 },
+            { minQty: 10000, discountPct: 22 },
+          ],
+        },
+        {
+          id: "abs-enclosure",
+          name: "ABS enclosure",
+          quantity: 1,
+          unitCostBase: 2.8,
+          volumeDiscounts: [{ minQty: 5000, discountPct: 15 }],
+        },
+        {
+          id: "lipo-battery",
+          name: "LiPo 1000 mAh",
+          quantity: 1,
+          unitCostBase: 3.2,
+          volumeDiscounts: [],
+        },
+      ],
+      labor: { hoursPerUnit: 0.25, hourlyRate: 18 },
+      overheadPct: 30,
+      toolingFixedCost: 12000,
+      productionVolumes: [500, 2000, 10000],
+      targetRetailPrice: 49.99,
+    },
+  },
+  {
+    name: "checkDesignFeasibility",
+    description:
+      "Scores a hardware product design against its requirements (weight, dimensions, IP rating, " +
+      "temperature range, cost, drop test, certifications). Returns a 0–1 feasibilityScore, " +
+      "hard/soft violations[], warnings[], and actionable recommendations[].",
+    dangerous: false,
+    idempotent: true,
+    costHint: "free",
+    inputSchema: toJsonSchema(CheckDesignFeasibilityInputSchema),
+    outputSchema: toJsonSchema(CheckDesignFeasibilityOutputSchema),
+    exampleInput: {
+      requirements: {
+        maxWeightGrams: 150,
+        maxLengthMm: 120,
+        maxWidthMm: 70,
+        maxHeightMm: 20,
+        ipRating: "IP67",
+        operatingTempMinC: -20,
+        operatingTempMaxC: 60,
+        targetUnitCostUsd: 18,
+        dropTestHeightM: 1.5,
+        requiredCertifications: ["CE", "FCC", "RoHS"],
+      },
+      design: {
+        estimatedWeightGrams: 162,
+        lengthMm: 118,
+        widthMm: 68,
+        heightMm: 19,
+        materials: [
+          {
+            name: "ABS plastic housing",
+            ipRatingCapable: "IP54",
+            tempMinC: -30,
+            tempMaxC: 80,
+          },
+          {
+            name: "EPDM gasket",
+            ipRatingCapable: "IP68",
+            tempMinC: -40,
+            tempMaxC: 120,
+          },
+        ],
+        estimatedUnitCostUsd: 16.5,
+        certificationStatus: { CE: "in-progress", FCC: "planned", RoHS: "certified" },
+        dropTestHeightM: 1.2,
+      },
+    },
+  },
+  {
+    name: "estimateProductWeight",
+    description:
+      "Aggregates per-component masses to compute total product and shipping weight. " +
+      "Identifies the heaviest contributors, breaks down mass by functional category, and " +
+      "checks the result against an optional weight budget.",
+    dangerous: false,
+    idempotent: true,
+    costHint: "free",
+    inputSchema: toJsonSchema(EstimateProductWeightInputSchema),
+    outputSchema: toJsonSchema(EstimateProductWeightOutputSchema),
+    exampleInput: {
+      components: [
+        { id: "mcu-stm32", name: "STM32L4 MCU", quantity: 1, massGrams: 1.2, category: "pcb" },
+        {
+          id: "abs-enclosure",
+          name: "ABS enclosure",
+          quantity: 1,
+          massGrams: 45,
+          category: "structural",
+        },
+        {
+          id: "lipo-battery",
+          name: "LiPo 1000 mAh",
+          quantity: 1,
+          massGrams: 22,
+          category: "battery",
+        },
+        {
+          id: "pcb-main",
+          name: "Main PCB",
+          quantity: 1,
+          massGrams: 18,
+          category: "pcb",
+        },
+        {
+          id: "m3-screw",
+          name: "M3×6 stainless screw",
+          quantity: 6,
+          massGrams: 0.9,
+          category: "fastener",
+        },
+      ],
+      packagingMassGrams: 85,
+      targetMaxWeightGrams: 150,
     },
   },
   {
