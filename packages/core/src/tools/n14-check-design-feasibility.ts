@@ -36,9 +36,7 @@ function ipMeetsRequirement(required: string, actual: string): boolean {
  * Each axis (dust, water) is bottlenecked by the *worst* material that contributes.
  * If no materials have IP data, returns null.
  */
-function resolveDesignIpRating(
-  materialIps: Array<string | undefined>,
-): string | null {
+function resolveDesignIpRating(materialIps: Array<string | undefined>): string | null {
   const valid = materialIps.filter((ip): ip is string => ip !== undefined);
   if (valid.length === 0) return null;
 
@@ -101,8 +99,7 @@ export function createCheckDesignFeasibilityTool(
           });
           penaltyScore += WEIGHT.weight.hard;
           recommendations.push(
-            `Reduce weight by at least ${(design.estimatedWeightGrams - req.maxWeightGrams).toFixed(0)} g. ` +
-              `Consider lightweight structural materials (magnesium alloy, carbon fibre composite) or thinner PCB substrate.`,
+            `Reduce weight by at least ${(design.estimatedWeightGrams - req.maxWeightGrams).toFixed(0)} g. Consider lightweight structural materials (magnesium alloy, carbon fibre composite) or thinner PCB substrate.`,
           );
         } else if (overPct > 5) {
           violations.push({
@@ -139,8 +136,7 @@ export function createCheckDesignFeasibilityTool(
           });
           penaltyScore += WEIGHT.dimension.hard;
           recommendations.push(
-            `${name.replace("max", "").replace("Mm", "")} exceeds limit by ${overMm.toFixed(1)} mm. ` +
-              `Review PCB stack-up or enclosure wall thickness.`,
+            `${name.replace("max", "").replace("Mm", "")} exceeds limit by ${overMm.toFixed(1)} mm. Review PCB stack-up or enclosure wall thickness.`,
           );
         }
       }
@@ -148,9 +144,7 @@ export function createCheckDesignFeasibilityTool(
       // ----- 3. IP rating -----
       if (req.ipRating !== undefined) {
         totalWeightChecked += WEIGHT.ipRating.hard;
-        const designIp = resolveDesignIpRating(
-          design.materials.map((m) => m.ipRatingCapable),
-        );
+        const designIp = resolveDesignIpRating(design.materials.map((m) => m.ipRatingCapable));
 
         if (designIp === null) {
           violations.push({
@@ -176,14 +170,12 @@ export function createCheckDesignFeasibilityTool(
           if (reqParsed && actParsed) {
             if (actParsed.dust < reqParsed.dust) {
               recommendations.push(
-                `Dust protection is IP${actParsed.dust}X but IP${reqParsed.dust}X required. ` +
-                  `Add dust filter or improve enclosure seal around openings.`,
+                `Dust protection is IP${actParsed.dust}X but IP${reqParsed.dust}X required. Add dust filter or improve enclosure seal around openings.`,
               );
             }
             if (actParsed.water < reqParsed.water) {
               recommendations.push(
-                `Water protection is IPX${actParsed.water} but IPX${reqParsed.water} required. ` +
-                  `Upgrade gasket material to EPDM or silicone; review connector seal rating.`,
+                `Water protection is IPX${actParsed.water} but IPX${reqParsed.water} required. Upgrade gasket material to EPDM or silicone; review connector seal rating.`,
               );
             }
           }
@@ -206,8 +198,7 @@ export function createCheckDesignFeasibilityTool(
               });
               penaltyScore += WEIGHT.tempRange.hard;
               recommendations.push(
-                `Replace or supplement '${mat.name}' — rated to ${mat.tempMinC} °C but ${req.operatingTempMinC} °C required. ` +
-                  `Consider low-temperature ABS or polycarbonate blend.`,
+                `Replace or supplement '${mat.name}' — rated to ${mat.tempMinC} °C but ${req.operatingTempMinC} °C required. Consider low-temperature ABS or polycarbonate blend.`,
               );
               tempHardFail = true;
             }
@@ -223,8 +214,7 @@ export function createCheckDesignFeasibilityTool(
               });
               if (!tempHardFail) penaltyScore += WEIGHT.tempRange.hard;
               recommendations.push(
-                `'${mat.name}' max temp (${mat.tempMaxC} °C) is below requirement (${req.operatingTempMaxC} °C). ` +
-                  `Consider high-heat PPS or PEEK for this component.`,
+                `'${mat.name}' max temp (${mat.tempMaxC} °C) is below requirement (${req.operatingTempMaxC} °C). Consider high-heat PPS or PEEK for this component.`,
               );
               tempHardFail = true;
             }
@@ -267,8 +257,7 @@ export function createCheckDesignFeasibilityTool(
           });
           penaltyScore += WEIGHT.cost.soft;
           recommendations.push(
-            `Unit cost exceeds target by ${((costRatio - 1) * 100).toFixed(1)}%. ` +
-              `Run estimateProductionCost at higher volumes to find the break-even point.`,
+            `Unit cost exceeds target by ${((costRatio - 1) * 100).toFixed(1)}%. Run estimateProductionCost at higher volumes to find the break-even point.`,
           );
         }
       }
@@ -278,8 +267,7 @@ export function createCheckDesignFeasibilityTool(
         totalWeightChecked += WEIGHT.dropTest.hard;
         if (design.dropTestHeightM === undefined) {
           warnings.push(
-            `Drop test to ${req.dropTestHeightM} m is required but no design validation data provided. ` +
-              `Perform FEA analysis or prototype drop test.`,
+            `Drop test to ${req.dropTestHeightM} m is required but no design validation data provided. Perform FEA analysis or prototype drop test.`,
           );
           penaltyScore += WEIGHT.dropTest.soft;
         } else if (design.dropTestHeightM < req.dropTestHeightM) {
@@ -291,8 +279,7 @@ export function createCheckDesignFeasibilityTool(
           });
           penaltyScore += WEIGHT.dropTest.hard;
           recommendations.push(
-            `Design only validated to ${design.dropTestHeightM} m drop; ${req.dropTestHeightM} m required. ` +
-              `Reinforce corners, add internal shock dampening, or thicken enclosure walls.`,
+            `Design only validated to ${design.dropTestHeightM} m drop; ${req.dropTestHeightM} m required. Reinforce corners, add internal shock dampening, or thicken enclosure walls.`,
           );
         }
       }
@@ -303,12 +290,13 @@ export function createCheckDesignFeasibilityTool(
         const status = design.certificationStatus[cert];
         if (status === undefined || status === "planned") {
           warnings.push(
-            `Certification '${cert}' is ${status === "planned" ? "only planned" : "not tracked"}. ` +
-              `Start the submission process early — typical lead time is 6–12 weeks.`,
+            `Certification '${cert}' is ${status === "planned" ? "only planned" : "not tracked"}. Start the submission process early — typical lead time is 6–12 weeks.`,
           );
           penaltyScore += WEIGHT.certification.soft;
         } else if (status === "in-progress") {
-          warnings.push(`Certification '${cert}' is in-progress — verify timeline against launch date.`);
+          warnings.push(
+            `Certification '${cert}' is in-progress — verify timeline against launch date.`,
+          );
           // in-progress: no score penalty, just a warning
         }
         // "certified" → no action

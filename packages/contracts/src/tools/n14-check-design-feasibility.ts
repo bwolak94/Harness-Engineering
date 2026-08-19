@@ -67,10 +67,7 @@ export const CheckDesignFeasibilityInputSchema = z.object({
       .optional()
       .describe("Current unit-cost estimate at primary production volume"),
     certificationStatus: z
-      .record(
-        z.string(),
-        z.enum(["planned", "in-progress", "certified"]),
-      )
+      .record(z.string(), z.enum(["planned", "in-progress", "certified"]))
       .default({})
       .describe("Certification name → current status"),
     dropTestHeightM: z

@@ -78,8 +78,10 @@ export function createEstimateProductionCostTool(
           }
         }
 
-        const overheadCostPerUnit = (materialCostPerUnit + laborCostPerUnit) * (input.overheadPct / 100);
-        const toolingAmortizedPerUnit = input.toolingFixedCost > 0 ? input.toolingFixedCost / volume : 0;
+        const overheadCostPerUnit =
+          (materialCostPerUnit + laborCostPerUnit) * (input.overheadPct / 100);
+        const toolingAmortizedPerUnit =
+          input.toolingFixedCost > 0 ? input.toolingFixedCost / volume : 0;
 
         const unitCostTotal =
           materialCostPerUnit + laborCostPerUnit + overheadCostPerUnit + toolingAmortizedPerUnit;
@@ -92,7 +94,8 @@ export function createEstimateProductionCostTool(
 
         let grossMarginPct: number | undefined;
         if (input.targetRetailPrice !== undefined) {
-          grossMarginPct = ((input.targetRetailPrice - unitCostTotal) / input.targetRetailPrice) * 100;
+          grossMarginPct =
+            ((input.targetRetailPrice - unitCostTotal) / input.targetRetailPrice) * 100;
         }
 
         const row: EstimateProductionCostOutput["volumeBreakdown"][number] = {

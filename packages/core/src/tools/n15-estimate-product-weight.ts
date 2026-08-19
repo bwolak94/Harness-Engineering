@@ -45,10 +45,7 @@ export function createEstimateProductWeightTool(
         .sort((a, b) => b.totalMassGrams - a.totalMassGrams);
 
       // ----- Category breakdown -----
-      const categoryMap = new Map<
-        string,
-        { totalMassGrams: number; componentCount: number }
-      >();
+      const categoryMap = new Map<string, { totalMassGrams: number; componentCount: number }>();
 
       for (const c of input.components) {
         const existing = categoryMap.get(c.category) ?? { totalMassGrams: 0, componentCount: 0 };

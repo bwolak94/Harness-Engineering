@@ -72,10 +72,7 @@ export const EstimateProductWeightOutputSchema = z.object({
     .number()
     .nonnegative()
     .describe("totalProductWeightGrams + packagingWeightGrams"),
-  targetMet: z
-    .boolean()
-    .nullable()
-    .describe("null when targetMaxWeightGrams is not provided"),
+  targetMet: z.boolean().nullable().describe("null when targetMaxWeightGrams is not provided"),
   overageGrams: z
     .number()
     .nullable()
