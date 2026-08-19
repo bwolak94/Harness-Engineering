@@ -162,7 +162,8 @@ export function createDetectSubscriptionDriftTool(
         }
 
         // Check potentially cancelled (last charge > 60 days ago for monthly/weekly)
-        const lastDate = new Date(sorted[sorted.length - 1]?.date);
+        const lastDateStr = sorted[sorted.length - 1]?.date ?? sorted[0]!.date;
+        const lastDate = new Date(lastDateStr);
         const daysSinceLastCharge = (Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24);
         const expectedIntervalDays =
           frequency === "weekly"
@@ -181,8 +182,8 @@ export function createDetectSubscriptionDriftTool(
         subscriptions.push({
           name: name.slice(0, 1).toUpperCase() + name.slice(1),
           frequency,
-          firstChargeDate: sorted[0]?.date,
-          lastChargeDate: sorted[sorted.length - 1]?.date,
+          firstChargeDate: sorted[0]?.date ?? "",
+          lastChargeDate: sorted[sorted.length - 1]?.date ?? "",
           lastChargeAmount: lastAmt,
           priceHistory,
           driftPct,
